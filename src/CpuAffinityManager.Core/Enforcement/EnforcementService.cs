@@ -50,8 +50,7 @@ public class EnforcementService : IEnforcementService
         {
             "soft-cpu-sets" => ApplyCpuSets(pid, mask),
             "hard-affinity" => ApplyHardAffinity(pid, mask),
-            "job-enforced" => ApplyJobEnforced(pid, mask, lockBreakaway: rule.Action.Lock) || ApplyHardAffinity(pid, mask),
-            "job-locked" => ApplyJobEnforced(pid, mask, lockBreakaway: true) || ApplyHardAffinity(pid, mask),
+            "job-enforced" => ApplyJobEnforced(pid, mask, lockBreakaway: false) || ApplyHardAffinity(pid, mask),
             _ => false
         };
 
