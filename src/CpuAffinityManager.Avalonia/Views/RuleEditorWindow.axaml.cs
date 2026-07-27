@@ -32,26 +32,15 @@ public partial class RuleEditorWindow : Window
             SetCombo(CmbMode, editTarget.Action.Mode);
             SetCombo(CmbLevel, editTarget.Action.Level);
             ChkEnabled.IsChecked = editTarget.Enabled;
-            ChkLock.IsChecked = editTarget.Action.Lock;
 
-            // 优先核心回填:custom+customMask = 硬锁定;preferredCores = 优先调度。
-            if (editTarget.Action.Mode == "custom" &&
-                editTarget.Action.GetCustomMask() is ulong cm && cm != 0)
-            {
-                CmbPreferStrength.SelectedIndex = 1;
-                for (int i = 0; i < _coreBoxes.Count; i++)
-                    _coreBoxes[i].IsChecked = (cm & (1UL << i)) != 0;
-            }
-            else
-            {
-                ulong prefer = editTarget.Action.GetPreferredMask();
-                for (int i = 0; i < _coreBoxes.Count; i++)
-                    _coreBoxes[i].IsChecked = (prefer & (1UL << i)) != 0;
-            }
+            // 回填优先调度核心:只有 preferredCores 才能回填到 UI
+            ulong prefer = editTarget.Action.GetPreferredMask();
+            for (int i = 0; i < _coreBoxes.Count; i++)
+                _coreBoxes[i].IsChecked = (prefer & (1UL << i)) != 0;
         }
     }
 
-    /// <summary>按本机实际逻辑核生成“核心 N”复选框(标注 P 大核 / E 小核)。</summary>
+    /// <summary>按本机实际逻辑核生成"核心 N"复选框(标注 P 大核 / E 小核)。</summary>
     private void BuildCoreBoxes()
     {
         int total = Environment.ProcessorCount;
@@ -113,20 +102,13 @@ public partial class RuleEditorWindow : Window
         string process = TxtProcess.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(process)) return;
 
+        // 构建优先调度核心掩码（无限制）
         ulong prefer = 0;
         for (int i = 0; i < _coreBoxes.Count; i++)
             if (_coreBoxes[i].IsChecked == true) prefer |= 1UL << i;
 
         string mode = (CmbMode.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "all-cores";
         string level = (CmbLevel.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "hard-affinity";
-        bool hardLock = prefer != 0 && CmbPreferStrength.SelectedIndex == 1;
-
-        if (hardLock)
-        {
-            // 硬锁定:直接把勾选核心作为 custom 亲和性掩码,守护线程每秒重申。
-            mode = "custom";
-            if (level == "soft-cpu-sets") level = "hard-affinity"; // 软级别锁不住,至少硬亲和
-        }
 
         Result = new RuleEntry
         {
@@ -138,9 +120,8 @@ public partial class RuleEditorWindow : Window
             {
                 Mode = mode,
                 Level = level,
-                Lock = ChkLock.IsChecked == true,
-                CustomMask = hardLock ? "0x" + prefer.ToString("X") : _editTarget?.Action.CustomMask,
-                PreferredCores = (prefer == 0 || hardLock) ? null : "0x" + prefer.ToString("X"),
+                CustomMask = null, // 不再使用硬锁定,只用 preferredCores
+                PreferredCores = prefer == 0 ? null : "0x" + prefer.ToString("X"),
                 PreferredCore = null // legacy field superseded by the mask
             }
         };
