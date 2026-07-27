@@ -13,7 +13,7 @@
         <StackPanel Grid.Row="0" Spacing="2" Margin="0,0,0,14">
             <TextBlock x:Name="DlgTitle" Text="新建规则" FontSize="20" FontWeight="SemiBold"
                        Foreground="{DynamicResource TextPrimaryBrush}"/>
-            <TextBlock Text="定义进程匹配条件与 CPU 分配策略,保存后立即生效"
+            <TextBlock Text="定义进程匹配条件与 CPU 分配策略,保存后立即生���"
                        FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
         </StackPanel>
 
@@ -72,16 +72,13 @@
                                 <TextBlock Text="实施级别(强制力度)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 <ComboBox x:Name="CmbLevel" SelectedIndex="1" HorizontalAlignment="Stretch">
                                     <ComboBoxItem>soft-cpu-sets</ComboBoxItem><ComboBoxItem>hard-affinity</ComboBoxItem>
-                                    <ComboBoxItem>job-enforced</ComboBoxItem><ComboBoxItem>job-locked</ComboBoxItem>
+                                    <ComboBoxItem>job-enforced</ComboBoxItem>
                                 </ComboBox>
                             </StackPanel>
                         </Grid>
-                        <TextBlock Text="soft=软偏好 · hard=进程亲和性 · job-enforced=内核 Job 防篡改 · job-locked=锁定禁止脱离"
+                        <TextBlock Text="soft=软偏好 · hard=进程亲和性 · job-enforced=内核 Job 防篡改"
                                    FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
-                        <StackPanel Orientation="Horizontal" Spacing="18">
-                            <CheckBox x:Name="ChkEnabled" IsChecked="True" Content="启用规则"/>
-                            <CheckBox x:Name="ChkLock" Content="锁定脱离(禁止子进程逃逸)"/>
-                        </StackPanel>
+                        <CheckBox x:Name="ChkEnabled" IsChecked="True" Content="启用规则"/>
                     </StackPanel>
                 </Border>
 
@@ -95,15 +92,8 @@
                             <TextBlock Text="优先调度核心(可多选)" FontSize="13" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextPrimaryBrush}"/>
                         </StackPanel>
-                        <TextBlock Text="勾选核心后,按下面的“生效强度”决定行为。不勾选 = 不启用。"
+                        <TextBlock Text="勾选核心后,进程优先使用这些核心;但当这些核心满载时,还能溢出到其他核心。不勾选 = 不启用。"
                                    FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
-                        <StackPanel Spacing="3">
-                            <TextBlock Text="生效强度" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                            <ComboBox x:Name="CmbPreferStrength" SelectedIndex="0" HorizontalAlignment="Stretch">
-                                <ComboBoxItem>优先调度 — 内核 CPU Sets 把线程钉在勾选核心,忙时可溢出</ComboBoxItem>
-                                <ComboBoxItem>硬锁定 — 仅允许勾选核心(覆盖上面的亲和性模式,每秒强制重申)</ComboBoxItem>
-                            </ComboBox>
-                        </StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button x:Name="BtnPreferP" Content="全选大核" Classes="outline" FontSize="12"
                                     Padding="10,4" Click="PreferAllP_Click"/>
