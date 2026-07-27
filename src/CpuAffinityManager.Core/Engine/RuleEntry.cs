@@ -61,7 +61,7 @@ public class RuleAction
     [JsonPropertyName("mode")]
     public string Mode { get; set; } = "all-cores";
 
-    /// <summary>Enforcement level: soft-cpu-sets, hard-affinity, job-enforced, job-locked.</summary>
+    /// <summary>Enforcement level: soft-cpu-sets, hard-affinity, job-enforced.</summary>
     [JsonPropertyName("level")]
     public string Level { get; set; } = "hard-affinity";
 
@@ -124,11 +124,6 @@ public class RuleAction
             return 1UL << pc;
         return 0;
     }
-
-    /// <summary>When true, also prevents the process from breaking away from
-    /// the Job Object. Used with job-enforced level.</summary>
-    [JsonPropertyName("lock")]
-    public bool Lock { get; set; }
 
     /// <summary>
     /// Parses the CustomMask hex string to a ulong bitmask.
