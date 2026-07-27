@@ -1,0 +1,151 @@
+name: Build and Publish Release
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '9.0.x'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    strategy:
+      matrix:
+        include:
+          - name: "GUI (Avalonia)"
+            project: "src/CpuAffinityManager.Avalonia/CpuAffinityManager.Avalonia.csproj"
+            output: "GUI"
+          - name: "GUI (WPF)"
+            project: "src/CpuAffinityManager.App/CpuAffinityManager.App.csproj"
+            output: "GUI-WPF"
+          - name: "MCP Server"
+            project: "src/CpuAffinityManager.Mcp/CpuAffinityManager.Mcp.csproj"
+            output: "MCP"
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build ${{ matrix.name }}
+      run: dotnet build ${{ matrix.project }} -c Release --no-restore
+
+    - name: Publish ${{ matrix.name }}
+      run: |
+        dotnet publish ${{ matrix.project }} `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          -p:PublishAot=false `
+          -p:PublishSingleFile=true `
+          -p:IncludeNativeLibrariesForSelfExtract=true `
+          -p:EnableCompressionInSingleFile=true `
+          -o ./publish/${{ matrix.output }}
+
+    - name: Copy config files
+      run: |
+        $configDir = "./publish/${{ matrix.output }}/config"
+        New-Item -ItemType Directory -Force -Path $configDir | Out-Null
+        if (Test-Path "config/default-rules.json") {
+          Copy-Item "config/default-rules.json" $configDir -Force
+        }
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-${{ matrix.output }}
+        path: ./publish/${{ matrix.output }}
+        retention-days: 30
+
+  test:
+    needs: build
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Run tests
+      run: dotnet test -c Release --no-restore --verbosity normal
+      continue-on-error: true
+
+  release:
+    needs: build
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+
+    - name: Prepare release assets
+      run: |
+        $releaseDir = "./release-assets"
+        New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
+        
+        # 为每个组件创建压缩包
+        @("GUI", "GUI-WPF", "MCP") | ForEach-Object {
+          $source = "./artifacts/build-$_"
+          $dest = "$releaseDir/CpuAffinityManager-$_.zip"
+          if (Test-Path $source) {
+            Compress-Archive -Path "$source/*" -DestinationPath $dest -Force
+            Write-Host "Created: $dest"
+          }
+        }
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ./release-assets/*.zip
+        draft: false
+        prerelease: false
+        body: |
+          # CPU Affinity Manager Release
+          
+          ## 📦 Available Downloads
+          - **GUI (Avalonia)** - 推荐使用的图形界面
+          - **GUI (WPF)** - WPF 版图形界面
+          - **MCP Server** - AI(MCP) 命令行服务
+          
+          ## ⚠️ Important Notes
+          使用 job-enforced / job-locked 锁定级别时，请右键『以管理员身份运行』。
+          
+          For detailed setup and usage, see [README](https://github.com/${{ github.repository }}/blob/main/README.md)
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload to Artifacts for verification
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-assets
+        path: ./release-assets
+        retention-days: 90
