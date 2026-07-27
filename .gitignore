@@ -1,0 +1,40 @@
+# .NET Build outputs
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.pdb
+*.ilk
+*.ipdb
+*.iobj
+*.log
+*.tmp
+
+# NuGet
+*.nupkg
+**/packages/*
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Build artifacts
+成品/
+publish/
+out/
+artifacts/
+
+# Secrets
+**/appsettings.*.json
+!**/appsettings.json
+*.secret

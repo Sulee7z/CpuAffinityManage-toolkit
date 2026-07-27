@@ -1,0 +1,130 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CpuAffinityManager.Avalonia.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
+             x:Class="CpuAffinityManager.Avalonia.Views.DashboardView"
+             x:DataType="vm:DashboardViewModel"
+             x:CompileBindings="True">
+
+    <ScrollViewer>
+        <StackPanel Spacing="16">
+
+            <!-- Stats Row -->
+            <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="12">
+                <!-- Processes -->
+                <Border Grid.Column="0" Classes.card="True" Padding="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="进程" FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding ProcessCount}" FontSize="28"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="正在监控" FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                    </StackPanel>
+                </Border>
+                <!-- Rules -->
+                <Border Grid.Column="1" Classes.card="True" Padding="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="生效规则" FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding RulesActive}" FontSize="28"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource PrimaryBrush}"/>
+                        <TextBlock Text="已配置" FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                    </StackPanel>
+                </Border>
+                <!-- P-Cores -->
+                <Border Grid.Column="2" Classes.card="True" Padding="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="大核 P-Core" FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding PCoreCount}" FontSize="28"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource PcoreBrush}"/>
+                        <TextBlock Text="性能核" FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                    </StackPanel>
+                </Border>
+                <!-- E-Cores -->
+                <Border Grid.Column="3" Classes.card="True" Padding="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="小核 E-Core" FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding ECoreCount}" FontSize="28"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource EcoreBrush}"/>
+                        <TextBlock Text="能效核" FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- CPU Topology + Rules -->
+            <Grid ColumnDefinitions="1.5*,*" ColumnSpacing="12">
+                <!-- Core Visualization -->
+                <Border Grid.Column="0" Classes.card="True" Padding="20">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="CPU 拓扑" FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="核心布局与线程分配"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <ItemsControl ItemsSource="{Binding CoreItems}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:CoreVisualItem">
+                                    <Border Width="48" Height="48"
+                                            Background="{Binding ColorBrush}"
+                                            CornerRadius="8" Margin="3"
+                                            ToolTip.Tip="{Binding Tooltip}">
+                                        <TextBlock Text="{Binding Index}" Foreground="White"
+                                                   FontSize="12" FontWeight="SemiBold"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- Rule Summary -->
+                <Border Grid.Column="1" Classes.card="True" Padding="20">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="规则概览" FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="当前生效的强制规则"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <ItemsControl ItemsSource="{Binding RuleSummaries}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:RuleSummaryItem">
+                                    <Border Background="{DynamicResource SurfaceHoverBrush}"
+                                            CornerRadius="6" Padding="10,8" Margin="0,2">
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <Border Width="8" Height="8"
+                                                    Background="{Binding LevelColor}"
+                                                    CornerRadius="4"
+                                                    VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding DisplayText}" FontSize="12"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -1,0 +1,49 @@
+name: Build CpuAffinityManager
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build Core
+        run: dotnet build CpuAffinityManager\src\CpuAffinityManager.Core\CpuAffinityManager.Core.csproj -c Release
+
+      - name: Build Avalonia (GUI)
+        run: dotnet build CpuAffinityManager\src\CpuAffinityManager.Avalonia\CpuAffinityManager.Avalonia.csproj -c Release
+
+      - name: Build WPF (GUI)
+        run: dotnet build CpuAffinityManager\src\CpuAffinityManager.App\CpuAffinityManager.App.csproj -c Release
+
+      - name: Build MCP Server
+        run: dotnet build CpuAffinityManager\src\CpuAffinityManager.Mcp\CpuAffinityManager.Mcp.csproj -c Release
+
+      - name: Publish Avalonia GUI
+        run: dotnet publish CpuAffinityManager\src\CpuAffinityManager.Avalonia\CpuAffinityManager.Avalonia.csproj -c Release -o publish\Avalonia --self-contained false
+
+      - name: Publish MCP Server
+        run: dotnet publish CpuAffinityManager\src\CpuAffinityManager.Mcp\CpuAffinityManager.Mcp.csproj -c Release -o publish\MCP --self-contained false
+
+      - name: Upload Avalonia (Recommended GUI)
+        uses: actions/upload-artifact@v4
+        with:
+          name: GUI-Avalonia
+          path: publish\Avalonia\
+
+      - name: Upload MCP Server
+        uses: actions/upload-artifact@v4
+        with:
+          name: MCP-Server
+          path: publish\MCP\

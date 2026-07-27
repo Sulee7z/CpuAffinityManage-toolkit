@@ -1,0 +1,207 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CpuAffinityManager.Avalonia.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="760"
+             x:Class="CpuAffinityManager.Avalonia.Views.SystemToolsView"
+             x:DataType="vm:SystemToolsViewModel"
+             x:CompileBindings="True">
+
+    <ScrollViewer>
+        <StackPanel Spacing="12">
+
+            <TextBlock Text="部分系统级操作需要以管理员身份运行" FontSize="12"
+                       Foreground="{DynamicResource TextMutedBrush}"/>
+
+            <!-- 一键优化预设 -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="一键优化预设" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="组合应用电源模式 + 计时器分辨率 + 前台优先级,一步到位。"
+                               FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="primary" Content="🎮 游戏模式" Command="{Binding GameModeCommand}"/>
+                        <Button Classes="outline" Content="⚖ 均衡模式" Command="{Binding BalancedModeCommand}"/>
+                        <Button Classes="outline" Content="🔋 省电模式" Command="{Binding PowerSaveModeCommand}"/>
+                        <Button Classes="outline" Content="🖥 图形性能优化" Command="{Binding GraphicsPresetCommand}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 多媒体调度 MMCSS -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="多媒体调度 (DWM / MMCSS)" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="调整系统响应度与游戏任务的 GPU/CPU 优先级,减少多媒体卡顿(重启后完全生效)。"
+                               FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="primary" Content="优化(游戏/多媒体)" Command="{Binding MmcssOptimizeCommand}"/>
+                        <Button Classes="outline" Content="恢复默认" Command="{Binding MmcssResetCommand}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- DPC 延迟 / 响应速度优化 -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="降低 DPC 延迟 / 提高响应速度" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="一键解泊全部 CPU 核心、关闭电源限流(Power Throttling)、多媒体最高响应并切换高性能电源,减少 DPC/ISR 延迟与输入卡顿(部分项重启后完全生效)。"
+                               FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="primary" Content="⚡ 应用低延迟优化" Command="{Binding LatencyOptimizeCommand}"/>
+                        <Button Classes="outline" Content="恢复默认" Command="{Binding LatencyResetCommand}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 内存 -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="内存管理" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="清空所有进程的工作集,把物理内存释放回系统(不影响正在使用的数据)。"
+                               FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="primary" Content="一键系统内存清理"
+                                Command="{Binding CleanMemoryCommand}" IsEnabled="{Binding !IsBusy}"/>
+                        <Button Classes="outline" Content="清理系统文件缓存"
+                                Command="{Binding ClearFileCacheCommand}"/>
+                        <Button Classes="outline" Content="清理待机内存"
+                                Command="{Binding CleanStandbyCommand}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 电源计划维护 -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="电源计划维护" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="删除多余的重复『卓越性能』计划(保留一个,不动当前正在使用的)。"
+                               FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <Button Classes="outline" Content="清理多余电源计划"
+                            Command="{Binding CleanPowerPlansCommand}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- 计时器分辨率 -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="计时器分辨率" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="降低计时器分辨率可提升游戏/音频响应,但略增功耗。"
+                               FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="outline" Content="0.5 ms" Command="{Binding ApplyTimerCommand}" CommandParameter="0.5"/>
+                        <Button Classes="outline" Content="1.0 ms" Command="{Binding ApplyTimerCommand}" CommandParameter="1.0"/>
+                        <Button Classes="outline" Content="恢复默认 (15.6 ms)" Command="{Binding ApplyTimerCommand}" CommandParameter="15.6"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 电源模式 -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="电源模式" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="outline" Content="平衡" Command="{Binding SetPowerCommand}" CommandParameter="平衡"/>
+                        <Button Classes="outline" Content="高性能" Command="{Binding SetPowerCommand}" CommandParameter="高性能"/>
+                        <Button Classes="outline" Content="节能" Command="{Binding SetPowerCommand}" CommandParameter="节能"/>
+                        <Button Classes="outline" Content="卓越性能" Command="{Binding SetPowerCommand}" CommandParameter="卓越性能"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 前台优先加速 -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="前台优先加速(优先级分离)" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="调整 Win32PrioritySeparation。『前台加速』适合游戏,『均衡』适合服务器/后台。需管理员。"
+                               FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="outline" Content="前台加速" Command="{Binding SetPrioritySepCommand}" CommandParameter="38"/>
+                        <Button Classes="outline" Content="均衡(后台服务)" Command="{Binding SetPrioritySepCommand}" CommandParameter="24"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 睡眠 / 息屏 -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="睡眠与息屏" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="下载/挂机时可防止系统自动睡眠和息屏。"
+                               FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="primary" Content="保持唤醒(防睡眠/息屏)" Command="{Binding PreventSleepCommand}"/>
+                        <Button Classes="outline" Content="恢复默认" Command="{Binding AllowSleepCommand}"/>
+                        <Button Classes="outline" Content="立即睡眠" Command="{Binding SleepNowCommand}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 显示器亮度 -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="显示器亮度" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="通过 WMI 调节亮度(多用于笔记本或支持 DDC 的显示器)。"
+                               FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="outline" Content="25%" Command="{Binding SetBrightnessCommand}" CommandParameter="25"/>
+                        <Button Classes="outline" Content="50%" Command="{Binding SetBrightnessCommand}" CommandParameter="50"/>
+                        <Button Classes="outline" Content="75%" Command="{Binding SetBrightnessCommand}" CommandParameter="75"/>
+                        <Button Classes="outline" Content="100%" Command="{Binding SetBrightnessCommand}" CommandParameter="100"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 网络 DNS -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="网络 DNS" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="为所有已连接的网络适配器一键切换 DNS。"
+                               FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="outline" Content="自动(DHCP)" Command="{Binding SetDnsCommand}" CommandParameter="auto"/>
+                        <Button Classes="outline" Content="阿里 223.5.5.5" Command="{Binding SetDnsCommand}" CommandParameter="ali"/>
+                        <Button Classes="outline" Content="腾讯 119.29" Command="{Binding SetDnsCommand}" CommandParameter="tencent"/>
+                        <Button Classes="outline" Content="Cloudflare 1.1.1.1" Command="{Binding SetDnsCommand}" CommandParameter="cloudflare"/>
+                        <Button Classes="outline" Content="Google 8.8.8.8" Command="{Binding SetDnsCommand}" CommandParameter="google"/>
+                    </StackPanel>
+                    <TextBlock Text="MTU" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="outline" Content="1500(标准)" Command="{Binding SetMtuCommand}" CommandParameter="1500"/>
+                        <Button Classes="outline" Content="1492(PPPoE)" Command="{Binding SetMtuCommand}" CommandParameter="1492"/>
+                        <Button Classes="outline" Content="1400" Command="{Binding SetMtuCommand}" CommandParameter="1400"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 系统工具快捷入口 -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="系统工具快捷入口" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="outline" Content="设备管理器" Command="{Binding OpenToolCommand}" CommandParameter="devmgmt.msc"/>
+                        <Button Classes="outline" Content="服务" Command="{Binding OpenToolCommand}" CommandParameter="services.msc"/>
+                        <Button Classes="outline" Content="任务管理器" Command="{Binding OpenToolCommand}" CommandParameter="taskmgr.exe"/>
+                        <Button Classes="outline" Content="磁盘清理" Command="{Binding OpenToolCommand}" CommandParameter="cleanmgr.exe"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="{Binding Status}" FontSize="12" TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
