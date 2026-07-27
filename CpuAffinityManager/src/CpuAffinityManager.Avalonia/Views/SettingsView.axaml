@@ -1,0 +1,114 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CpuAffinityManager.Avalonia.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="760"
+             x:Class="CpuAffinityManager.Avalonia.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel"
+             x:CompileBindings="True">
+
+    <ScrollViewer>
+        <StackPanel Spacing="12">
+
+            <!-- 监控 -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="监控" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <ToggleSwitch IsChecked="{Binding EnableWmiMonitor}"
+                                  OffContent="已关闭 WMI 进程监控"
+                                  OnContent="已开启 WMI 进程监控"/>
+                    <ToggleSwitch IsChecked="{Binding ConfirmBeforeApply}"
+                                  OffContent="应用规则前不确认"
+                                  OnContent="应用规则前先确认"/>
+                    <ToggleSwitch IsChecked="{Binding MinimizeToTray}"
+                                  OffContent="点击关闭即退出程序"
+                                  OnContent="点击关闭时最小化到系统托盘"/>
+                    <ToggleSwitch IsChecked="{Binding RunAtStartup}"
+                                  OffContent="不随开机启动"
+                                  OnContent="开机自动启动本软件(当前用户)"/>
+                </StackPanel>
+            </Border>
+
+            <!-- 亲和性优先级 -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="核心亲和性优先级" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="当“手动指定核心”和“规则”对同一进程冲突时,决定谁说了算。开启=手动指定核心优先(守护线程会维持你手动选择的核心并压过规则);关闭=规则优先。"
+                               FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <ToggleSwitch IsChecked="{Binding ManualCoreWins}"
+                                  OffContent="规则优先级高"
+                                  OnContent="指定核心优先级高(手动 > 规则)"/>
+                </StackPanel>
+            </Border>
+
+            <!-- 第三方 AI 接口 -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="12">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="第三方 AI 接口 (HTTP API)" FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="开启后,第三方 AI 可通过 HTTP 读取拓扑/进程并自动写入规则"
+                                   FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="Auto,120,Auto,*" ColumnSpacing="10">
+                        <TextBlock Grid.Column="0" Text="端口" VerticalAlignment="Center"
+                                   FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBox Grid.Column="1" Text="{Binding ApiPort}" Watermark="8088"
+                                 IsEnabled="{Binding !ApiRunning}"/>
+                        <ToggleSwitch Grid.Column="2" IsChecked="{Binding ApiAllowRemote}"
+                                      IsEnabled="{Binding !ApiRunning}"
+                                      OffContent="仅本机" OnContent="允许远程"/>
+                    </Grid>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <Button Classes="primary" Command="{Binding ToggleApiCommand}"
+                                Content="{Binding ApiRunning, Converter={x:Static vm:BoolToStartStop.Instance}}"/>
+                        <TextBlock Text="{Binding ApiStatus}" VerticalAlignment="Center"
+                                   FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="6" Padding="12"
+                            IsVisible="{Binding ApiRunning}">
+                        <SelectableTextBlock Text="{Binding ApiExample}" FontFamily="Consolas, Cascadia Mono, monospace"
+                                             FontSize="12" TextWrapping="Wrap"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- 外观 -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="外观" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <Grid ColumnDefinitions="100,*">
+                        <TextBlock Text="主题" VerticalAlignment="Center"
+                                   FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <ComboBox Grid.Column="1" Width="200"
+                                  ItemsSource="{x:Static vm:SettingsViewModel.ThemeOptions}"
+                                  SelectedIndex="{Binding SelectedThemeIndex}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- 关于 -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="关于" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}">
+                        <Run Text="CPU 亲和性管理器 "/>
+                        <Run Text="{Binding AppVersion}"/>
+                    </TextBlock>
+                    <TextBlock Text="基于 Avalonia UI + .NET 10 构建 · Windows 11 Fluent 设计"
+                               FontSize="12" Foreground="{DynamicResource TextMutedBrush}"/>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

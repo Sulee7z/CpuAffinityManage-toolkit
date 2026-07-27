@@ -1,0 +1,61 @@
+name: Build CpuAffinityManager
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        project: [Avalonia, App, Mcp]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore CpuAffinityManager/src/CpuAffinityManager.${{ matrix.project }}/CpuAffinityManager.${{ matrix.project }}.csproj
+
+      - name: Build ${{ matrix.project }}
+        run: dotnet build CpuAffinityManager/src/CpuAffinityManager.${{ matrix.project }}/CpuAffinityManager.${{ matrix.project }}.csproj -c Release --no-restore
+
+  build-all:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build All
+        run: |
+          dotnet restore CpuAffinityManager\src\CpuAffinityManager.Core\CpuAffinityManager.Core.csproj
+          dotnet build CpuAffinityManager\src\CpuAffinityManager.Avalonia\CpuAffinityManager.Avalonia.csproj -c Release
+          dotnet build CpuAffinityManager\src\CpuAffinityManager.App\CpuAffinityManager.App.csproj -c Release
+          dotnet build CpuAffinityManager\src\CpuAffinityManager.Mcp\CpuAffinityManager.Mcp.csproj -c Release
+
+      - name: Upload Avalonia (GUI)
+        uses: actions/upload-artifact@v4
+        with:
+          name: GUI-Avalonia
+          path: |
+            CpuAffinityManager\src\CpuAffinityManager.Avalonia\bin\Release\net10.0\win-x64\publish\**
+            CpuAffinityManager\src\CpuAffinityManager.Avalonia\bin\Release\net10.0\win-x64\*.exe
+            CpuAffinityManager\src\CpuAffinityManager.Avalonia\bin\Release\net10.0\win-x64\*.dll
+
+      - name: Upload MCP Server
+        uses: actions/upload-artifact@v4
+        with:
+          name: MCP-Server
+          path: CpuAffinityManager\src\CpuAffinityManager.Mcp\bin\Release\net10.0\win-x64\

@@ -1,0 +1,172 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CpuAffinityManager.Avalonia.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
+             x:Class="CpuAffinityManager.Avalonia.Views.ProcessListView"
+             x:DataType="vm:ProcessListViewModel"
+             x:CompileBindings="True">
+
+    <Grid RowDefinitions="Auto,*" IsEnabled="{Binding !IsLoading}">
+        <!-- Search & Filter Bar -->
+        <Border Grid.Row="0" Classes.card="True" Padding="12">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
+                <TextBox Watermark="🔍  搜索进程…" Text="{Binding SearchText}" FontSize="13"/>
+                <TextBlock Grid.Column="1" Text="排序" VerticalAlignment="Center" FontSize="12"
+                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                <ComboBox Grid.Column="2" Width="110"
+                          ItemsSource="{x:Static vm:ProcessListViewModel.SortModes}"
+                          SelectedItem="{Binding SortMode}"/>
+                <CheckBox Grid.Column="3" Content="自动刷新" IsChecked="{Binding AutoRefresh}"
+                          VerticalAlignment="Center"/>
+                <Button Grid.Column="4" Content="↻ 刷新" Classes.ghost="True"
+                        Command="{Binding RefreshCommand}"/>
+            </Grid>
+        </Border>
+
+        <!-- Process List -->
+        <Border Grid.Row="1" Classes.card="True" Padding="0" ClipToBounds="True">
+            <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding Processes}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ProcessItem">
+                            <Border Classes.process-row="True" Padding="12,8"
+                                    ContextRequested="Row_ContextRequested">
+                                <Border.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="设为大核 (P-Core)"
+                                                  Command="{Binding $parent[UserControl].DataContext.SetAffinityPCoresCommand}"
+                                                  CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="设为小核 (E-Core)"
+                                                  Command="{Binding $parent[UserControl].DataContext.SetAffinityECoresCommand}"
+                                                  CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="设为全部核心"
+                                                  Command="{Binding $parent[UserControl].DataContext.SetAffinityAllCoresCommand}"
+                                                  CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="-"/>
+                                        <MenuItem Header="设为前一半核心"
+                                                  Command="{Binding $parent[UserControl].DataContext.SetAffinityFirstHalfCommand}"
+                                                  CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="设为后一半核心"
+                                                  Command="{Binding $parent[UserControl].DataContext.SetAffinitySecondHalfCommand}"
+                                                  CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="-"/>
+                                        <MenuItem Header="Job 对象强制 (防篡改)"
+                                                  Command="{Binding $parent[UserControl].DataContext.SetJobEnforcedCommand}"
+                                                  CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="Job 对象锁定 (禁止脱离)"
+                                                  Command="{Binding $parent[UserControl].DataContext.SetJobLockedCommand}"
+                                                  CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="-"/>
+                                        <MenuItem Header="应用匹配的规则"
+                                                  Command="{Binding $parent[UserControl].DataContext.ApplyMatchedRuleCommand}"
+                                                  CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="线程级核心调度(线程分散到各核)"
+                                                  Command="{Binding $parent[UserControl].DataContext.ThreadScheduleCommand}"
+                                                  CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="-"/>
+                                        <MenuItem Header="CPU 优先级">
+                                            <MenuItem Header="高" Command="{Binding $parent[UserControl].DataContext.PriorityHighCommand}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="常规" Command="{Binding $parent[UserControl].DataContext.PriorityNormalCommand}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="低" Command="{Binding $parent[UserControl].DataContext.PriorityIdleCommand}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="-"/>
+                                            <MenuItem Header="↩ 还原默认(常规)" Command="{Binding $parent[UserControl].DataContext.ResetCpuPriorityCommand}" CommandParameter="{Binding .}"/>
+                                        </MenuItem>
+                                        <MenuItem Header="GPU 优先级">
+                                            <MenuItem Header="实时" Command="{Binding $parent[UserControl].DataContext.GpuPriorityRealtimeCommand}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="高" Command="{Binding $parent[UserControl].DataContext.GpuPriorityHighCommand}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="常规" Command="{Binding $parent[UserControl].DataContext.GpuPriorityNormalCommand}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="低" Command="{Binding $parent[UserControl].DataContext.GpuPriorityLowCommand}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="-"/>
+                                            <MenuItem Header="↩ 还原默认(常规)" Command="{Binding $parent[UserControl].DataContext.ResetGpuPriorityCommand}" CommandParameter="{Binding .}"/>
+                                        </MenuItem>
+                                        <MenuItem Header="IO / 内存 / 效率">
+                                            <MenuItem Header="IO 优先级：低" Command="{Binding $parent[UserControl].DataContext.IoPriorityLowCommand}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="IO 优先级：常规" Command="{Binding $parent[UserControl].DataContext.IoPriorityNormalCommand}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="IO 优先级：高" Command="{Binding $parent[UserControl].DataContext.IoPriorityHighCommand}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="↩ 还原 IO 优先级(常规)" Command="{Binding $parent[UserControl].DataContext.ResetIoPriorityCommand}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="-"/>
+                                            <MenuItem Header="内存优先级：低" Command="{Binding $parent[UserControl].DataContext.MemoryPriorityLowCommand}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="内存优先级：常规" Command="{Binding $parent[UserControl].DataContext.MemoryPriorityNormalCommand}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="内存优先级：高" Command="{Binding $parent[UserControl].DataContext.MemoryPriorityHighCommand}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="↩ 还原内存优先级(系统默认)" Command="{Binding $parent[UserControl].DataContext.ResetMemoryPriorityCommand}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="-"/>
+                                            <MenuItem Header="开启效率模式 (EcoQoS)" Command="{Binding $parent[UserControl].DataContext.EfficiencyOnCommand}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="↩ 关闭效率模式(还原)" Command="{Binding $parent[UserControl].DataContext.EfficiencyOffCommand}" CommandParameter="{Binding .}"/>
+                                        </MenuItem>
+                                        <MenuItem Header="CPU 核心亲和性(多选核心)…" Command="{Binding $parent[UserControl].DataContext.OpenAffinityCommand}" CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="↩ 还原 CPU 亲和性(全部核心)" Command="{Binding $parent[UserControl].DataContext.ResetAffinityCommand}" CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="核心分配算法(线程级)"
+                                                  ItemsSource="{Binding $parent[UserControl].DataContext.AlgoChoices}">
+                                            <MenuItem.ItemContainerTheme>
+                                                <ControlTheme TargetType="MenuItem" x:DataType="vm:CoreChoice"
+                                                              BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                    <Setter Property="Header" Value="{Binding Label}"/>
+                                                    <Setter Property="Command" Value="{Binding Command}"/>
+                                                </ControlTheme>
+                                            </MenuItem.ItemContainerTheme>
+                                        </MenuItem>
+                                        <MenuItem Header="↩ 还原核心分配算法(清除线程绑定)" Command="{Binding $parent[UserControl].DataContext.ResetCoreAlgorithmCommand}" CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="释放物理内存 (清空工作集)" Command="{Binding $parent[UserControl].DataContext.EmptyWorkingSetCommand}" CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="限制物理内存">
+                                            <MenuItem Header="上限 512 MB" Command="{Binding $parent[UserControl].DataContext.LimitMem512Command}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="上限 1 GB" Command="{Binding $parent[UserControl].DataContext.LimitMem1024Command}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="解除上限" Command="{Binding $parent[UserControl].DataContext.UnlimitMemCommand}" CommandParameter="{Binding .}"/>
+                                        </MenuItem>
+                                        <MenuItem Header="限制虚拟内存 (提交,重启前不可撤销)">
+                                            <MenuItem Header="上限 512 MB" Command="{Binding $parent[UserControl].DataContext.LimitVMem512Command}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="上限 1 GB" Command="{Binding $parent[UserControl].DataContext.LimitVMem1024Command}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="上限 2 GB" Command="{Binding $parent[UserControl].DataContext.LimitVMem2048Command}" CommandParameter="{Binding .}"/>
+                                        </MenuItem>
+                                        <MenuItem Header="窗口">
+                                            <MenuItem Header="置顶窗口" Command="{Binding $parent[UserControl].DataContext.BringToFrontCommand}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="最小化" Command="{Binding $parent[UserControl].DataContext.MinimizeWindowCommand}" CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="还原" Command="{Binding $parent[UserControl].DataContext.RestoreWindowCommand}" CommandParameter="{Binding .}"/>
+                                        </MenuItem>
+                                        <MenuItem Header="-"/>
+                                        <MenuItem Header="挂起进程" Command="{Binding $parent[UserControl].DataContext.SuspendProcessCommand}" CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="恢复进程" Command="{Binding $parent[UserControl].DataContext.ResumeProcessCommand}" CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="结束进程" Command="{Binding $parent[UserControl].DataContext.TerminateProcessCommand}" CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="结束进程树 (含子进程)" Command="{Binding $parent[UserControl].DataContext.TerminateTreeCommand}" CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="-"/>
+                                        <MenuItem Header="定位文件" Command="{Binding $parent[UserControl].DataContext.LocateFileCommand}" CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="复制进程信息" Command="{Binding $parent[UserControl].DataContext.CopyInfoCommand}" CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="查看句柄/线程/联网信息" Command="{Binding $parent[UserControl].DataContext.ShowConnectionsCommand}" CommandParameter="{Binding .}"/>
+                                    </ContextMenu>
+                                </Border.ContextMenu>
+                                <Grid ColumnDefinitions="Auto,*,Auto,160">
+                                    <Border Grid.Column="0" Width="36" Height="36" CornerRadius="8"
+                                            Background="{DynamicResource PrimaryBgBrush}" Margin="0,0,12,0">
+                                        <TextBlock Text="⚙" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding Path}" FontSize="11"
+                                                   Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                    <Border Grid.Column="2" VerticalAlignment="Center" CornerRadius="10"
+                                            Padding="8,2" Margin="0,0,12,0"
+                                            Background="{DynamicResource PrimaryBgBrush}"
+                                            IsVisible="{Binding MatchedRule, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                        <TextBlock Text="{Binding MatchedRule}" FontSize="10" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource PrimaryBrush}"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="1">
+                                        <TextBlock Text="{Binding CpuText}" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource PrimaryBrush}"/>
+                                        <TextBlock Text="{Binding MemText}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}">
+                                            <Run Text="PID "/><Run Text="{Binding Pid}"/><Run Text="  "/><Run Text="{Binding Affinity}"/>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</UserControl>

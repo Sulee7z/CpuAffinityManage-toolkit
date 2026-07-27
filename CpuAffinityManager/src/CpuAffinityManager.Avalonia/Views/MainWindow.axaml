@@ -1,0 +1,155 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CpuAffinityManager.Avalonia.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="820"
+        x:Class="CpuAffinityManager.Avalonia.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        x:CompileBindings="True"
+        Title="{Binding WindowTitle}"
+        Icon="/Assets/app.ico"
+        MinWidth="900" MinHeight="600"
+        FontFamily="Segoe UI Variable Text, Segoe UI, Inter, sans-serif"
+        Background="Transparent"
+        TransparencyLevelHint="Mica,AcrylicBlur"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="PreferSystemChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        WindowStartupLocation="CenterScreen">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <!-- Root transparent so the Mica backdrop shows through the title strip;
+         the nav pane and content areas below paint their own solid fills. -->
+    <Grid RowDefinitions="40,*" Background="Transparent">
+
+        <!-- ═══ Title bar (draggable, Mica strip) ═══ -->
+        <Border Grid.Row="0" Name="TitleBar" Background="Transparent"
+                PointerPressed="TitleBar_PointerPressed">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                        Margin="14,0,0,0" Spacing="10">
+                <Image Source="avares://CpuAffinityManager.Avalonia/Assets/app-icon.png"
+                       Width="18" Height="18" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding WindowTitle}" FontSize="12"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ Body: nav pane + content ═══ -->
+        <Grid Grid.Row="1" ColumnDefinitions="240,*">
+
+            <!-- Navigation pane (Win11 NavigationView) -->
+            <Border Grid.Column="0" Background="{DynamicResource SidebarBgBrush}">
+                <Grid RowDefinitions="Auto,*,Auto" Margin="0,4,0,0">
+
+                    <!-- Nav items -->
+                    <StackPanel Grid.Row="0" Margin="10,8,10,0" Spacing="3">
+                        <Button Classes="nav" Classes.nav-selected="{Binding IsDashboardSelected}"
+                                Command="{Binding NavigateToDashboardCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="&#xE80F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center"/>
+                                <TextBlock Text="仪表盘" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="nav" Classes.nav-selected="{Binding IsProcessesSelected}"
+                                Command="{Binding NavigateToProcessesCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="&#xE9F5;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center"/>
+                                <TextBlock Text="进程" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="nav" Classes.nav-selected="{Binding IsRulesSelected}"
+                                Command="{Binding NavigateToRulesCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="&#xE71C;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center"/>
+                                <TextBlock Text="规则" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="nav" Classes.nav-selected="{Binding IsAiSelected}"
+                                Command="{Binding NavigateToAiCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="&#xE99A;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center"/>
+                                <TextBlock Text="AI 助手" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="nav" Classes.nav-selected="{Binding IsToolsSelected}"
+                                Command="{Binding NavigateToToolsCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="&#xE90F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center"/>
+                                <TextBlock Text="系统工具" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="nav" Classes.nav-selected="{Binding IsStartupSelected}"
+                                Command="{Binding NavigateToStartupCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="&#xE7B5;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center"/>
+                                <TextBlock Text="启动项" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="nav" Classes.nav-selected="{Binding IsSettingsSelected}"
+                                Command="{Binding NavigateToSettingsCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center"/>
+                                <TextBlock Text="设置" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- CPU info footer -->
+                    <Border Grid.Row="2" Classes="sidebar-footer" VerticalAlignment="Bottom">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="CPU 拓扑" FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding SidebarCpuInfo}" FontSize="12"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Content -->
+            <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto" Background="{DynamicResource BgBrush}">
+
+                <!-- Content header -->
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="24,16,24,8">
+                    <StackPanel Spacing="2" VerticalAlignment="Center">
+                        <TextBlock Text="CPU 亲和性管理器" FontSize="20" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="以内核级强制手段管理进程 CPU 亲和性"
+                                   FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Classes="primary" VerticalAlignment="Center"
+                            Command="{Binding ScanNowCommand}" IsEnabled="{Binding !IsScanning}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="&#xE773;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"/>
+                            <TextBlock Text="立即扫描" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <!-- Page content -->
+                <ContentControl Grid.Row="1" Content="{Binding CurrentPage}" Margin="24,8,24,8"/>
+
+                <!-- Status bar -->
+                <Border Grid.Row="2" Background="{DynamicResource SurfaceBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0"
+                        Padding="20,8">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="8" Height="8" CornerRadius="4"
+                                    Background="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding StatusText}" FontSize="12"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="2" Text="v2.20.0" FontSize="12"
+                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

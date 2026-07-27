@@ -1,0 +1,174 @@
+{
+  "version": 2,
+  "rules": [
+    {
+      "id": "rule-001",
+      "name": "Steam 游戏绑大核·全盘(防篡改)",
+      "enabled": true,
+      "match": {
+        "process": "*.exe",
+        "path": "**\\steamapps\\common\\**",
+        "exclude": ["*launcher*.exe", "*crash*.exe", "*report*.exe", "*updater*.exe", "unins*.exe", "EasyAntiCheat*.exe", "BEService*.exe", "*BattlEye*.exe", "steamwebhelper.exe"]
+      },
+      "action": { "type": "cpu-affinity", "mode": "p-cores|all-cores", "level": "job-enforced", "customMask": null, "socketIndex": null, "cpuPriority": "high", "lock": false }
+    },
+    {
+      "id": "rule-002",
+      "name": "Epic 游戏绑大核·全盘(防篡改)",
+      "enabled": true,
+      "match": {
+        "process": "*.exe",
+        "path": "**\\Epic Games\\**",
+        "exclude": ["*launcher*.exe", "*crash*.exe", "*EpicGames*.exe", "*updater*.exe", "EasyAntiCheat*.exe", "BEService*.exe", "*BattlEye*.exe"]
+      },
+      "action": { "type": "cpu-affinity", "mode": "p-cores|all-cores", "level": "job-enforced", "customMask": null, "socketIndex": null, "cpuPriority": "high", "lock": false }
+    },
+    {
+      "id": "rule-003",
+      "name": "通用游戏目录绑大核·全盘 Games\\(防篡改)",
+      "enabled": true,
+      "match": {
+        "process": "*.exe",
+        "path": "**\\Games\\**",
+        "exclude": ["*launcher*.exe", "*crash*.exe", "*report*.exe", "*updater*.exe", "*update*.exe", "unins*.exe", "EasyAntiCheat*.exe", "BEService*.exe", "*BattlEye*.exe"]
+      },
+      "action": { "type": "cpu-affinity", "mode": "p-cores|all-cores", "level": "job-enforced", "customMask": null, "socketIndex": null, "cpuPriority": "high", "lock": false }
+    },
+    {
+      "id": "rule-004",
+      "name": "模拟器用大核",
+      "enabled": true,
+      "match": {
+        "process": "yuzu.exe|ryujinx.exe|pcsx2*.exe|rpcs3.exe|dolphin.exe|cemu.exe|vita3k.exe|xenia*.exe|duckstation*.exe",
+        "path": "**",
+        "exclude": null
+      },
+      "action": { "type": "cpu-affinity", "mode": "p-cores|all-cores", "level": "hard-affinity", "customMask": null, "socketIndex": null, "cpuPriority": "high", "lock": false }
+    },
+    {
+      "id": "rule-005",
+      "name": "浏览器偏好大核(软偏好)",
+      "enabled": true,
+      "match": {
+        "process": "chrome.exe|msedge.exe|firefox.exe|brave.exe|opera.exe|360se*.exe",
+        "path": "**",
+        "exclude": null
+      },
+      "action": { "type": "cpu-affinity", "mode": "p-cores|all-cores", "level": "soft-cpu-sets", "customMask": null, "socketIndex": null, "cpuPriority": null, "lock": false }
+    },
+    {
+      "id": "rule-006",
+      "name": "Adobe 创作套件用大核",
+      "enabled": true,
+      "match": {
+        "process": "Photoshop.exe|Premiere Pro.exe|AfterFX.exe|Illustrator.exe|Lightroom.exe|Acrobat.exe",
+        "path": "**",
+        "exclude": null
+      },
+      "action": { "type": "cpu-affinity", "mode": "p-cores|all-cores", "level": "hard-affinity", "customMask": null, "socketIndex": null, "cpuPriority": "aboveNormal", "lock": false }
+    },
+    {
+      "id": "rule-007",
+      "name": "渲染/转码全核但让路前台",
+      "enabled": true,
+      "match": {
+        "process": "blender.exe|Resolve.exe|HandBrake*.exe|ffmpeg*.exe|x264*.exe|x265*.exe|obs64.exe",
+        "path": "**",
+        "exclude": null
+      },
+      "action": { "type": "cpu-affinity", "mode": "all-cores", "level": "soft-cpu-sets", "customMask": null, "socketIndex": null, "cpuPriority": "belowNormal", "lock": false }
+    },
+    {
+      "id": "rule-008",
+      "name": "编译/开发工具用大核",
+      "enabled": true,
+      "match": {
+        "process": "devenv.exe|MSBuild.exe|cl.exe|clang*.exe|link.exe|rustc.exe|cargo.exe|go.exe|node.exe|java.exe|javac.exe|dotnet.exe|gcc.exe|make.exe|ninja.exe",
+        "path": "**",
+        "exclude": null
+      },
+      "action": { "type": "cpu-affinity", "mode": "p-cores|first-half", "level": "hard-affinity", "customMask": null, "socketIndex": null, "cpuPriority": null, "lock": false }
+    },
+    {
+      "id": "rule-009",
+      "name": "数据库用大核(无大核则前一半)",
+      "enabled": true,
+      "match": {
+        "process": "sqlservr.exe|mysqld.exe|postgres.exe|redis-server.exe|mongod.exe",
+        "path": "**",
+        "exclude": null
+      },
+      "action": { "type": "cpu-affinity", "mode": "p-cores|first-half", "level": "hard-affinity", "customMask": null, "socketIndex": null, "cpuPriority": null, "lock": false }
+    },
+    {
+      "id": "rule-010",
+      "name": "压缩解压全核但让路前台",
+      "enabled": true,
+      "match": {
+        "process": "7z*.exe|WinRAR.exe|Bandizip.exe|WinZip*.exe",
+        "path": "**",
+        "exclude": null
+      },
+      "action": { "type": "cpu-affinity", "mode": "all-cores", "level": "soft-cpu-sets", "customMask": null, "socketIndex": null, "cpuPriority": "belowNormal", "lock": false }
+    },
+    {
+      "id": "rule-011",
+      "name": "后台更新/索引/遥测用小核",
+      "enabled": true,
+      "match": {
+        "process": "update*.exe|setup*.exe|*installer*.exe|*indexer*.exe|SearchIndexer.exe|CompatTelRunner.exe|MoUsoCoreWorker.exe|TiWorker.exe|OneDriveStandaloneUpdater.exe|GoogleUpdate.exe|SearchProtocolHost.exe",
+        "path": "**",
+        "exclude": null
+      },
+      "action": { "type": "cpu-affinity", "mode": "e-cores|second-half", "level": "soft-cpu-sets", "customMask": null, "socketIndex": null, "cpuPriority": "belowNormal", "lock": false }
+    },
+    {
+      "id": "rule-012",
+      "name": "云盘同步用小核",
+      "enabled": true,
+      "match": {
+        "process": "OneDrive.exe|Dropbox.exe|GoogleDriveFS.exe|BaiduNetdisk*.exe|Nutstore.exe",
+        "path": "**",
+        "exclude": null
+      },
+      "action": { "type": "cpu-affinity", "mode": "e-cores|second-half", "level": "soft-cpu-sets", "customMask": null, "socketIndex": null, "cpuPriority": "belowNormal", "lock": false }
+    },
+    {
+      "id": "rule-013",
+      "name": "即时通讯用小核",
+      "enabled": true,
+      "match": {
+        "process": "Discord.exe|Slack.exe|Teams.exe|ms-teams.exe|WeChat.exe|QQ.exe|TIM.exe|DingTalk.exe|Telegram.exe",
+        "path": "**",
+        "exclude": null
+      },
+      "action": { "type": "cpu-affinity", "mode": "e-cores|second-half", "level": "soft-cpu-sets", "customMask": null, "socketIndex": null, "cpuPriority": null, "lock": false }
+    },
+    {
+      "id": "rule-014",
+      "name": "杀毒实时扫描限小核",
+      "enabled": true,
+      "match": {
+        "process": "MsMpEng.exe|MpCmdRun.exe|360*.exe|HipsTray.exe|QQPCRTP.exe",
+        "path": "**",
+        "exclude": null
+      },
+      "action": { "type": "cpu-affinity", "mode": "e-cores|second-half", "level": "soft-cpu-sets", "customMask": null, "socketIndex": null, "cpuPriority": "belowNormal", "lock": false }
+    },
+    {
+      "id": "rule-015",
+      "name": "示例·锁死 CPU-Z 到小核(默认关闭)",
+      "enabled": false,
+      "match": { "process": "cpuz*.exe|cpu-z*.exe", "path": null, "exclude": null },
+      "action": { "type": "cpu-affinity", "mode": "e-cores|second-half", "level": "job-locked", "customMask": null, "socketIndex": null, "cpuPriority": null, "lock": true }
+    },
+    {
+      "id": "rule-016",
+      "name": "示例·系统服务限前一半核心(谨慎,默认关闭)",
+      "enabled": false,
+      "match": { "process": "svchost.exe", "path": "C:\\Windows\\**", "exclude": null },
+      "action": { "type": "cpu-affinity", "mode": "first-half", "level": "hard-affinity", "customMask": null, "socketIndex": null, "cpuPriority": null, "lock": false }
+    }
+  ],
+  "settings": { "enableWmiMonitor": true, "confirmBeforeApply": false, "minimizeToTray": true }
+}
