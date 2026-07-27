@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CpuAffinityManager.Avalonia.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
+             x:Class="CpuAffinityManager.Avalonia.Views.RuleListView"
+             x:DataType="vm:RuleListViewModel"
+             x:CompileBindings="True">
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="4">
+                <TextBlock Text="规则" FontSize="18" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                <TextBlock Text="用通配符匹配来配置 CPU 亲和性规则"
+                           FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Content="导出" Classes="outline" Command="{Binding ExportRulesCommand}"/>
+                <Button Content="导入" Classes="outline" Command="{Binding ImportRulesCommand}"/>
+                <Button Content="+ 新建规则" Classes="primary" Command="{Binding AddRuleCommand}"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Rules List -->
+        <ScrollViewer Grid.Row="1">
+            <ItemsControl ItemsSource="{Binding Rules}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:RuleItem">
+                        <Border Classes.card="True" Padding="16" Margin="0,0,0,8">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <ToggleSwitch Grid.Column="0" IsChecked="{Binding Enabled}"
+                                              VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Border Classes.tag="True">
+                                            <TextBlock Text="{Binding Mode}" FontSize="10"
+                                                       FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}"/>
+                                        </Border>
+                                        <Border CornerRadius="12" Padding="10,3" Background="{DynamicResource PrimaryBgBrush}">
+                                            <TextBlock Text="{Binding Level}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}">
+                                        <Run Text="匹配: "/><Run Text="{Binding ProcessPattern}"/>
+                                    </TextBlock>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="4">
+                                    <Button Content="✎" Classes.ghost="True"
+                                            Command="{Binding $parent[UserControl].DataContext.EditRuleCommand}"
+                                            CommandParameter="{Binding .}"/>
+                                    <Button Content="✕" Classes.danger="True"
+                                            Command="{Binding $parent[UserControl].DataContext.DeleteRuleCommand}"
+                                            CommandParameter="{Binding .}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Empty State -->
+        <Border Grid.Row="1" IsVisible="{Binding !HasRules}"
+                HorizontalAlignment="Center" VerticalAlignment="Center" Padding="40">
+            <StackPanel Spacing="12" HorizontalAlignment="Center">
+                <TextBlock Text="📏" FontSize="36" HorizontalAlignment="Center"/>
+                <TextBlock Text="尚未配置规则" FontSize="16" FontWeight="SemiBold"
+                           HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                <TextBlock Text="点击右上角『+ 新建规则』创建第一条规则" FontSize="12"
+                           Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

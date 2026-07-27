@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CpuAffinityManager.App/CpuAffinityManager.App.csproj" />
+    <Project Path="src/CpuAffinityManager.Avalonia/CpuAffinityManager.Avalonia.csproj" />
+    <Project Path="src/CpuAffinityManager.Core/CpuAffinityManager.Core.csproj" />
+    <Project Path="src/CpuAffinityManager.Mcp/CpuAffinityManager.Mcp.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CpuAffinityManager.Tests/CpuAffinityManager.Tests.csproj" />
+  </Folder>
+</Solution>
