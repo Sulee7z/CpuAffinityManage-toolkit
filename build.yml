@@ -12,6 +12,7 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 60
     
     steps:
     - name: Checkout code
@@ -22,7 +23,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '9.0.x'
+        dotnet-version: '10.0.x'
 
     - name: Restore dependencies
       run: dotnet restore
@@ -35,18 +36,17 @@ jobs:
       run: dotnet publish src/CpuAffinityManager.Avalonia/CpuAffinityManager.Avalonia.csproj `
         -c Release `
         -r win-x64 `
-        --self-contained true `
-        -p:PublishAot=false `
-        -p:PublishSingleFile=true `
-        -p:IncludeNativeLibrariesForSelfExtract=true `
-        -p:EnableCompressionInSingleFile=true `
+        --self-contained `
         -o ./bin/GUI
 
     - name: Copy config to GUI
       run: |
         $configDir = "./bin/GUI/config"
         New-Item -ItemType Directory -Force -Path $configDir | Out-Null
-        Copy-Item "config/default-rules.json" $configDir -Force
+        if (Test-Path "config/default-rules.json") {
+          Copy-Item "config/default-rules.json" $configDir -Force
+          Write-Host "Copied config to GUI"
+        }
 
     # ===================== GUI (WPF) =====================
     - name: Build GUI (WPF)
@@ -56,18 +56,17 @@ jobs:
       run: dotnet publish src/CpuAffinityManager.App/CpuAffinityManager.App.csproj `
         -c Release `
         -r win-x64 `
-        --self-contained true `
-        -p:PublishAot=false `
-        -p:PublishSingleFile=true `
-        -p:IncludeNativeLibrariesForSelfExtract=true `
-        -p:EnableCompressionInSingleFile=true `
+        --self-contained `
         -o ./bin/GUI-WPF
 
     - name: Copy config to GUI-WPF
       run: |
         $configDir = "./bin/GUI-WPF/config"
         New-Item -ItemType Directory -Force -Path $configDir | Out-Null
-        Copy-Item "config/default-rules.json" $configDir -Force
+        if (Test-Path "config/default-rules.json") {
+          Copy-Item "config/default-rules.json" $configDir -Force
+          Write-Host "Copied config to GUI-WPF"
+        }
 
     # ===================== MCP Server =====================
     - name: Build MCP Server
@@ -77,18 +76,17 @@ jobs:
       run: dotnet publish src/CpuAffinityManager.Mcp/CpuAffinityManager.Mcp.csproj `
         -c Release `
         -r win-x64 `
-        --self-contained true `
-        -p:PublishAot=false `
-        -p:PublishSingleFile=true `
-        -p:IncludeNativeLibrariesForSelfExtract=true `
-        -p:EnableCompressionInSingleFile=true `
+        --self-contained `
         -o ./bin/MCP
 
     - name: Copy config to MCP
       run: |
         $configDir = "./bin/MCP/config"
         New-Item -ItemType Directory -Force -Path $configDir | Out-Null
-        Copy-Item "config/default-rules.json" $configDir -Force
+        if (Test-Path "config/default-rules.json") {
+          Copy-Item "config/default-rules.json" $configDir -Force
+          Write-Host "Copied config to MCP"
+        }
 
     # ===================== Run Tests =====================
     - name: Run tests
@@ -98,6 +96,7 @@ jobs:
     # ===================== Upload Artifacts =====================
     - name: Upload GUI (Avalonia) artifact
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: GUI-Avalonia
         path: ./bin/GUI
@@ -105,6 +104,7 @@ jobs:
 
     - name: Upload GUI (WPF) artifact
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: GUI-WPF
         path: ./bin/GUI-WPF
@@ -112,6 +112,7 @@ jobs:
 
     - name: Upload MCP Server artifact
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: MCP-Server
         path: ./bin/MCP
@@ -150,14 +151,20 @@ jobs:
         New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
         
         # Create ZIP for each component
-        Compress-Archive -Path "./artifacts/GUI/*" -DestinationPath "$releaseDir/CpuAffinityManager-GUI-Avalonia.zip" -Force
-        Write-Host "Created: CpuAffinityManager-GUI-Avalonia.zip"
+        if (Test-Path "./artifacts/GUI") {
+          Compress-Archive -Path "./artifacts/GUI/*" -DestinationPath "$releaseDir/CpuAffinityManager-GUI-Avalonia.zip" -Force
+          Write-Host "Created: CpuAffinityManager-GUI-Avalonia.zip"
+        }
         
-        Compress-Archive -Path "./artifacts/GUI-WPF/*" -DestinationPath "$releaseDir/CpuAffinityManager-GUI-WPF.zip" -Force
-        Write-Host "Created: CpuAffinityManager-GUI-WPF.zip"
+        if (Test-Path "./artifacts/GUI-WPF") {
+          Compress-Archive -Path "./artifacts/GUI-WPF/*" -DestinationPath "$releaseDir/CpuAffinityManager-GUI-WPF.zip" -Force
+          Write-Host "Created: CpuAffinityManager-GUI-WPF.zip"
+        }
         
-        Compress-Archive -Path "./artifacts/MCP/*" -DestinationPath "$releaseDir/CpuAffinityManager-MCP-Server.zip" -Force
-        Write-Host "Created: CpuAffinityManager-MCP-Server.zip"
+        if (Test-Path "./artifacts/MCP") {
+          Compress-Archive -Path "./artifacts/MCP/*" -DestinationPath "$releaseDir/CpuAffinityManager-MCP-Server.zip" -Force
+          Write-Host "Created: CpuAffinityManager-MCP-Server.zip"
+        }
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
