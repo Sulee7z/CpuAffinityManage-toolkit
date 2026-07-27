@@ -2,9 +2,9 @@ name: Build CpuAffinityManager
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -31,10 +31,10 @@ jobs:
         run: dotnet build CpuAffinityManager\src\CpuAffinityManager.Mcp\CpuAffinityManager.Mcp.csproj -c Release
 
       - name: Publish Avalonia GUI
-        run: dotnet publish CpuAffinityManager\src\CpuAffinityManager.Avalonia\CpuAffinityManager.Avalonia.csproj -c Release -o publish\Avalonia --self-contained false
+        run: dotnet publish CpuAffinityManager\src\CpuAffinityManager.Avalonia\CpuAffinityManager.Avalonia.csproj -c Release -o publish\Avalonia -r win-x64 --self-contained true
 
       - name: Publish MCP Server
-        run: dotnet publish CpuAffinityManager\src\CpuAffinityManager.Mcp\CpuAffinityManager.Mcp.csproj -c Release -o publish\MCP --self-contained false
+        run: dotnet publish CpuAffinityManager\src\CpuAffinityManager.Mcp\CpuAffinityManager.Mcp.csproj -c Release -o publish\MCP -r win-x64 --self-contained true
 
       - name: Upload Avalonia (Recommended GUI)
         uses: actions/upload-artifact@v4
