@@ -1,0 +1,15 @@
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.log
+appsettings.json
+ai-config.json
+*.tmp
+.vs/
+.idea/
+packages/
+_out/
+成品/
+Crashes/

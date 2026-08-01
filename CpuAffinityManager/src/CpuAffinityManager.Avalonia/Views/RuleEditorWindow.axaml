@@ -1,0 +1,161 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="CpuAffinityManager.Avalonia.Views.RuleEditorWindow"
+        Title="规则编辑器" Width="620" Height="760"
+        CanResize="False" WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BgBrush}"
+        FontFamily="Segoe UI Variable Text, Segoe UI, Inter, sans-serif"
+        x:CompileBindings="True">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24,20">
+
+        <!-- ═══ 标题 ═══ -->
+        <StackPanel Grid.Row="0" Spacing="2" Margin="0,0,0,14">
+            <TextBlock x:Name="DlgTitle" Text="新建规则" FontSize="20" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+            <TextBlock Text="定义进程匹配条件与 CPU 分配策略,保存后立即生效"
+                       FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+        </StackPanel>
+
+        <!-- ═══ 表单 ═══ -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12">
+
+                <!-- 匹配条件 -->
+                <Border Classes="card" Padding="16">
+                    <StackPanel Spacing="10">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="&#xE721;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="14" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource PrimaryBrush}"/>
+                            <TextBlock Text="匹配条件" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        </StackPanel>
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="规则名称" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBox x:Name="TxtName" FontSize="13" Watermark="例如:游戏绑大核"/>
+                        </StackPanel>
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <StackPanel Grid.Column="0" Spacing="3">
+                                <TextBlock Text="进程名通配符" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox x:Name="TxtProcess" FontSize="13" Watermark="game.exe 或 *.exe"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="3">
+                                <TextBlock Text="路径通配符(可选)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox x:Name="TxtPath" FontSize="13" Watermark="**\Games\** 匹配所有盘"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- 亲和性策略 -->
+                <Border Classes="card" Padding="16">
+                    <StackPanel Spacing="10">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="&#xE950;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="14" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource PrimaryBrush}"/>
+                            <TextBlock Text="亲和性策略" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        </StackPanel>
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <StackPanel Grid.Column="0" Spacing="3">
+                                <TextBlock Text="亲和性模式(允许使用哪些核心)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <ComboBox x:Name="CmbMode" SelectedIndex="0" HorizontalAlignment="Stretch">
+                                    <ComboBoxItem>all-cores</ComboBoxItem><ComboBoxItem>p-cores</ComboBoxItem>
+                                    <ComboBoxItem>e-cores</ComboBoxItem><ComboBoxItem>p-cores-smt</ComboBoxItem>
+                                    <ComboBoxItem>p-cores-no-smt</ComboBoxItem><ComboBoxItem>first-half</ComboBoxItem>
+                                    <ComboBoxItem>second-half</ComboBoxItem><ComboBoxItem>custom</ComboBoxItem>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="3">
+                                <TextBlock Text="实施级别(强制力度)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <ComboBox x:Name="CmbLevel" SelectedIndex="1" HorizontalAlignment="Stretch">
+                                    <ComboBoxItem>soft-cpu-sets</ComboBoxItem><ComboBoxItem>hard-affinity</ComboBoxItem>
+                                    <ComboBoxItem>job-enforced</ComboBoxItem><ComboBoxItem>job-locked</ComboBoxItem>
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="soft=软偏好 · hard=进程亲和性 · job-enforced=内核 Job 防篡改 · job-locked=锁定禁止脱离"
+                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <StackPanel Grid.Column="0" Spacing="3">
+                                <TextBlock Text="GPU 调度优先级" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <ComboBox x:Name="CmbGpuPriority" SelectedIndex="-1" HorizontalAlignment="Stretch">
+                                    <ComboBoxItem Content="">不设置</ComboBoxItem>
+                                    <ComboBoxItem>0=空闲(idle)</ComboBoxItem>
+                                    <ComboBoxItem>1=低于常规</ComboBoxItem>
+                                    <ComboBoxItem>2=常规(normal)</ComboBoxItem>
+                                    <ComboBoxItem>3=高于常规</ComboBoxItem>
+                                    <ComboBoxItem>4=高(high)</ComboBoxItem>
+                                    <ComboBoxItem>5=实时(realtime)</ComboBoxItem>
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Spacing="18">
+                            <CheckBox x:Name="ChkEnabled" IsChecked="True" Content="启用规则"/>
+                            <CheckBox x:Name="ChkLock" Content="锁定脱离(禁止子进程逃逸)"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- 核心调度面板 -->
+                <Border Classes="card" Padding="16">
+                    <StackPanel Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="&#xE945;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="14" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource PrimaryBrush}"/>
+                            <TextBlock Text="核心调度设置" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        </StackPanel>
+                        <TextBlock x:Name="TxtLockedHint" Text="" FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
+
+                        <!-- 绑定模式 + 全选/清空 -->
+                        <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,4,0,0">
+                            <StackPanel Grid.Column="0" Spacing="3">
+                                <TextBlock Text="绑定模式" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <ComboBox x:Name="CmbPreferMode" SelectedIndex="0" MinWidth="140" HorizontalAlignment="Stretch">
+                                    <ComboBoxItem>dynamic(动态·软优先)</ComboBoxItem>
+                                    <ComboBoxItem>static(静态·硬绑)</ComboBoxItem>
+                                    <ComboBoxItem>d2(CPU Sets·中)</ComboBoxItem>
+                                    <ComboBoxItem>d3(省电·EcoQoS)</ComboBoxItem>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Spacing="6">
+                                <Button Content="全选大核" Classes="outline" FontSize="11" Padding="6,3" Click="PreferAllP_Click"/>
+                                <Button Content="清全部" Classes="outline" FontSize="11" Padding="6,3" Click="PreferClear_Click"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- 列标题 -->
+                        <Grid ColumnDefinitions="100,40,40" Margin="0,6,0,0">
+                            <TextBlock Grid.Column="0" Text="核心" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Grid.Column="1" Text="池" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="优先" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                        </Grid>
+
+                        <!-- 核心列表 -->
+                        <ScrollViewer MaxHeight="260">
+                            <StackPanel x:Name="CoreGrid" Spacing="1"/>
+                        </ScrollViewer>
+
+                        <TextBlock Text="池=可调度核心 · 优先=第一优先级核心(须先勾选池) · 绑定模式决定强度"
+                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ═══ 按钮 ═══ -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,14,0,0">
+            <Button Content="取消" Classes="outline" Click="Cancel_Click"/>
+            <Button x:Name="BtnSave" Content="保存规则" Classes="primary" Click="Save_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

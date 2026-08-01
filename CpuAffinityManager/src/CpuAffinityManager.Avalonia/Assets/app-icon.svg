@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="CPU Affinity Manager icon">
+  <defs>
+    <linearGradient id="bg" x1="48" y1="32" x2="208" y2="224" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1E293B"/>
+      <stop offset="1" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="chip" x1="72" y1="70" x2="184" y2="186" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#3B82F6"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="93" y1="74" x2="164" y2="181" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F59E0B"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="256" height="256" rx="54" fill="url(#bg)"/>
+  <path d="M72 42h112c16.6 0 30 13.4 30 30v112c0 16.6-13.4 30-30 30H72c-16.6 0-30-13.4-30-30V72c0-16.6 13.4-30 30-30Z" fill="#334155"/>
+
+  <g stroke="#94A3B8" stroke-width="10" stroke-linecap="round">
+    <path d="M76 31v24M108 31v24M148 31v24M180 31v24"/>
+    <path d="M76 201v24M108 201v24M148 201v24M180 201v24"/>
+    <path d="M31 76h24M31 108h24M31 148h24M31 180h24"/>
+    <path d="M201 76h24M201 108h24M201 148h24M201 180h24"/>
+  </g>
+
+  <rect x="66" y="66" width="124" height="124" rx="28" fill="url(#chip)"/>
+  <rect x="86" y="86" width="84" height="84" rx="20" fill="#0F172A" opacity=".38"/>
+
+  <path d="M95 145c22-40 48-48 72-34" fill="none" stroke="#E0F2FE" stroke-width="12" stroke-linecap="round"/>
+  <path d="M103 161c19-18 39-22 60-12" fill="none" stroke="#BAE6FD" stroke-width="8" stroke-linecap="round" opacity=".9"/>
+  <path d="M122 82l-28 58h31l-15 42 54-68h-34l20-32z" fill="url(#spark)"/>
+
+  <g fill="#F8FAFC">
+    <circle cx="94" cy="145" r="12"/>
+    <circle cx="166" cy="111" r="12"/>
+    <circle cx="164" cy="149" r="10"/>
+  </g>
+  <circle cx="128" cy="128" r="18" fill="#10B981" stroke="#F8FAFC" stroke-width="8"/>
+</svg>

@@ -1,0 +1,98 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CpuAffinityManager.Avalonia.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="760"
+             x:Class="CpuAffinityManager.Avalonia.Views.AiView"
+             x:DataType="vm:AiViewModel"
+             x:CompileBindings="True">
+
+    <ScrollViewer>
+        <StackPanel Spacing="12">
+
+            <!-- 提供商 / 密钥 -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="12">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="AI 提供商与 API Key" FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="导入你自己的第三方 AI 密钥(兼容 OpenAI 接口:OpenAI / DeepSeek / Kimi / 智谱 / OpenRouter / 本地 Ollama 等)"
+                                   FontSize="12" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="10">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="提供商" VerticalAlignment="Center"
+                                   FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" Width="240"
+                                  ItemsSource="{x:Static vm:AiViewModel.ProviderNames}"
+                                  SelectedIndex="{Binding SelectedProviderIndex}"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Base URL" VerticalAlignment="Center"
+                                   FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding BaseUrl}"
+                                 Watermark="https://api.openai.com/v1"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="API Key" VerticalAlignment="Center"
+                                   FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <TextBox Grid.Column="0" Text="{Binding ApiKey}" PasswordChar="●"
+                                     RevealPassword="{Binding ShowApiKey}" Watermark="sk-..."/>
+                            <CheckBox Grid.Column="1" Content="显示" IsChecked="{Binding ShowApiKey}"
+                                      VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="模型" VerticalAlignment="Center"
+                                   FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Model}"
+                                 HorizontalAlignment="Left" Width="240" Watermark="gpt-4o-mini"/>
+                    </Grid>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button Classes="outline" Content="保存密钥与配置" Command="{Binding SaveConfigCommand}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 让 AI 写规则 -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="12">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="让 AI 生成规则" FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="用一句话描述需求,AI 会生成规则并直接导入。例如:把所有盘上的游戏绑到大核防篡改,后台更新和网盘同步放到小核。"
+                                   FontSize="12" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <TextBox Text="{Binding RequestText}" AcceptsReturn="True" MinHeight="90"
+                             TextWrapping="Wrap"
+                             Watermark="描述你想要的 CPU 亲和性策略…"/>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <Button Classes="primary" Content="生成并导入规则"
+                                Command="{Binding GenerateRulesCommand}"
+                                IsEnabled="{Binding !IsBusy}"/>
+                        <Button Classes="outline" Content="自动检测一键生成"
+                                Command="{Binding AutoGenerateCommand}"
+                                IsEnabled="{Binding !IsBusy}"
+                                ToolTip.Tip="扫描系统环境、已装游戏,自动生成最优规则集"/>
+                        <TextBlock Text="{Binding Status}" VerticalAlignment="Center"
+                                   FontSize="12" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="6" Padding="12"
+                            IsVisible="{Binding Preview, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <SelectableTextBlock Text="{Binding Preview}"
+                                             FontFamily="Consolas, Cascadia Mono, monospace"
+                                             FontSize="12" TextWrapping="Wrap"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
