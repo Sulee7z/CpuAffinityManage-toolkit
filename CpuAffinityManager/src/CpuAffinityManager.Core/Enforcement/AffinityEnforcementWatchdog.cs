@@ -76,6 +76,7 @@ public sealed class AffinityEnforcementWatchdog : IDisposable
             if (r.Enabled && !string.IsNullOrEmpty(r.Match.Path)) { needPath = true; break; }
         }
 
+        var livePids = new HashSet<int>();
         foreach (var process in Process.GetProcesses())
         {
             try
@@ -83,6 +84,7 @@ public sealed class AffinityEnforcementWatchdog : IDisposable
                 int pid = process.Id;
                 if (pid is 0 or 4)
                     continue;
+                livePids.Add(pid);
 
                 // 指定核心优先:若该进程有手动选择的核心且“指定核心优先级高”开启,
                 // 则守护线程负责把它维持在手动掩码上,并跳过规则(手动 > 规则)。
@@ -142,7 +144,15 @@ public sealed class AffinityEnforcementWatchdog : IDisposable
                 if (prefer != 0)
                     ProcOps.ProcessControlService.ApplyPreferredCores(pid, prefer, rule.Action.GetPreferMode());
 
-                ulong expected = CpuTopology.BuildMask(topology, rule.Action.Mode, rule.Action.GetCustomMask());
+                ulong expected;
+                string expectedMode = rule.Action.Mode;
+                // Socket-filtered rules restrict to one physical CPU: mirror the
+                // @socketN suffix so the expected mask matches what Apply() actually
+                // enforces. Without this, the watchdog re-applied (and re-logged)
+                // every single tick for every socket-filtered rule.
+                if (rule.Action.SocketIndex is int socketIdx && socketIdx >= 0)
+                    expectedMode += $"@socket{socketIdx}";
+                expected = CpuTopology.BuildMask(topology, expectedMode, rule.Action.GetCustomMask());
                 string wpm = rule.Action.GetPreferMode();
                 if (wpm is "static" or "d2")
                 {
@@ -176,6 +186,15 @@ public sealed class AffinityEnforcementWatchdog : IDisposable
             {
                 try { process.Dispose(); } catch { }
             }
+        }
+
+        // Prune bookkeeping for processes that have exited: Job Object handles
+        // (so a recycled PID never inherits a stale affinity limit and the table
+        // stays bounded) and the per-PID hard-lock markers.
+        if (livePids.Count > 0)
+        {
+            try { _enforcementService.PruneDeadJobs(livePids); } catch { }
+            try { ProcOps.PersistentAffinityStore.PruneHardLocked(livePids); } catch { }
         }
 
         return changed;

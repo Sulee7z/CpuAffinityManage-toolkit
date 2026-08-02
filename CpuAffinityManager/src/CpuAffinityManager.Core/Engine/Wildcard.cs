@@ -44,11 +44,27 @@ public static class Wildcard
     /// <summary>
     /// Matches a full file path against a path pattern.
     /// Uses ** for multi-level directory matching.
+    /// Supports | OR alternatives between whole path patterns
+    /// (e.g. "D:\Games\**|E:\Games\**").
     /// </summary>
     public static bool MatchPath(string path, string pattern, bool ignoreCase = true)
     {
         if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(pattern))
             return false;
+
+        // OR-separated path alternatives: try each in order.
+        if (pattern.IndexOf('|') >= 0)
+        {
+            var alternatives = pattern.Split('|', StringSplitOptions.TrimEntries);
+            foreach (string alt in alternatives)
+            {
+                if (alt.Length == 0)
+                    continue;
+                if (MatchPath(path, alt, ignoreCase))
+                    return true;
+            }
+            return false;
+        }
 
         // Normalize separators
         path = path.Replace('/', '\\');

@@ -76,8 +76,9 @@ public class MainViewModel : INotifyPropertyChanged
         {
             System.Windows.Application.Current?.Dispatcher.Invoke(() =>
             {
-                string? fullPath = EnforcementService.GetProcessPath(e.Pid);
-                if (fullPath == null) return;
+                // Protected processes may refuse path queries: treat the path as
+                // empty so name-only rules still match.
+                string fullPath = EnforcementService.GetProcessPath(e.Pid) ?? string.Empty;
 
                 var rule = _ruleEngine.Match(e.ProcessName, fullPath);
                 if (rule != null)

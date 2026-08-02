@@ -230,5 +230,73 @@ public class CpuTopologyTests
         Assert.Equal(0xF0UL, mask);
     }
 
+    [Fact]
+    public void BuildHalfMask_SingleCore_FirstHalfIsCoreZero()
+    {
+        var topology = new CpuTopology
+        {
+            TotalLogicalProcessors = 1,
+            PcoreCount = 1,
+            PcoreMask = 0x1,
+            SocketCount = 1
+        };
+
+        Assert.Equal(0x1UL, CpuTopology.BuildHalfMask(topology, firstHalf: true));
+        Assert.Equal(0x0UL, CpuTopology.BuildHalfMask(topology, firstHalf: false));
+    }
+
+    [Fact]
+    public void BuildHalfMask_OddCount_FirstHalfHasExtraCore()
+    {
+        var topology = new CpuTopology
+        {
+            TotalLogicalProcessors = 15,
+            PcoreCount = 15,
+            PcoreMask = 0x7FFF,
+            SocketCount = 1
+        };
+
+        // Ceiling: first half = 8 cores (bits 0-7), second half = bits 8-14.
+        Assert.Equal(0x00FFUL, CpuTopology.BuildHalfMask(topology, firstHalf: true));
+        Assert.Equal(0x7F00UL, CpuTopology.BuildHalfMask(topology, firstHalf: false));
+    }
+
+    [Fact]
+    public void BuildHalfMask_MoreThan64Cores_SecondHalfClampsToGroupZero()
+    {
+        var topology = new CpuTopology
+        {
+            TotalLogicalProcessors = 96,
+            PcoreCount = 96,
+            PcoreMask = 0,
+            SocketCount = 1
+        };
+
+        // 96 LPs span multiple processor groups; only LPs 0..63 are representable.
+        // First half (0..47) is fully representable; second half starts at 48 and
+        // must not overflow past bit 63.
+        ulong first = CpuTopology.BuildHalfMask(topology, firstHalf: true);
+        ulong second = CpuTopology.BuildHalfMask(topology, firstHalf: false);
+
+        Assert.Equal(0x0000FFFFFFFFFFFFUL, first); // bits 0..47
+        Assert.Equal(0xFFFF000000000000UL, second); // bits 48..63
+        Assert.Equal(0UL, first & second);
+    }
+
+    [Fact]
+    public void BuildHalfMask_NoShiftOverflow_OnExactly64Cores()
+    {
+        var topology = new CpuTopology
+        {
+            TotalLogicalProcessors = 64,
+            PcoreCount = 64,
+            PcoreMask = 0,
+            SocketCount = 1
+        };
+
+        Assert.Equal(0xFFFFFFFF00000000UL, CpuTopology.BuildHalfMask(topology, firstHalf: false));
+        Assert.Equal(0x00000000FFFFFFFFUL, CpuTopology.BuildHalfMask(topology, firstHalf: true));
+    }
+
     #endregion
 }

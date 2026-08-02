@@ -83,8 +83,10 @@ public partial class MainWindow : Window
                 {
                     try
                     {
-                        string? path = EnforcementService.GetProcessPath(e.Pid);
-                        if (path == null) return;
+                        // Protected processes may refuse path queries: treat the
+                        // path as empty so name-only rules still match (same fix
+                        // that was applied to ScanAndEnforce).
+                        string path = EnforcementService.GetProcessPath(e.Pid) ?? string.Empty;
                         var rule = _ruleEngine.Match(e.ProcessName, path);
                         if (rule != null)
                         {
@@ -183,7 +185,9 @@ public partial class MainWindow : Window
                         int pid; string name;
                         try { pid = p.Id; } catch { continue; }
                         try { name = p.ProcessName + ".exe"; } catch { continue; }
-                        string? path = null; try { if (pid is not 0 and not 4) path = p.MainModule?.FileName; } catch { }
+                        // Fast native path query (QueryFullProcessImageName) instead
+                        // of the slow, exception-prone Process.MainModule.
+                        string? path = null; try { if (pid is not 0 and not 4) path = EnforcementService.GetProcessPath(pid); } catch { }
                         string aff = "N/A"; try { if (pid is not 0 and not 4) aff = $"{p.ProcessorAffinity.ToInt64():X8}"; } catch { }
                         var rule = _ruleEngine.Match(name, path ?? "");
                         items.Add(new ProcessListItem
@@ -363,14 +367,33 @@ public partial class MainWindow : Window
         if (rule == null)
             return;
 
-        rule.Enabled = checkBox.IsChecked == true;
+        bool newState = checkBox.IsChecked == true;
+        if (rule.Enabled != newState)
+        {
+            // Publish a NEW RuleEntry (copy-on-write) instead of mutating the
+            // shared snapshot in place — the watchdog reads Enabled concurrently
+            // and the rule engine guarantees immutable snapshots.
+            _ruleEngine.AddRule(CopyWithEnabled(rule, newState));
+        }
+
+        var updated = _ruleEngine.Rules.FirstOrDefault(r => r.Id == id) ?? rule;
         SaveRules();
-        ApplyRuleToggleToRunningProcesses(rule, rule.Enabled);
+        ApplyRuleToggleToRunningProcesses(updated, newState);
         RefreshDashboard();
-        TxtStatus.Text = rule.Enabled
+        TxtStatus.Text = newState
             ? $"规则『{rule.Name}』已启用"
             : $"规则『{rule.Name}』已禁用";
     }
+
+    /// <summary>Returns a shallow copy of a rule with a different Enabled flag.</summary>
+    private static RuleEntry CopyWithEnabled(RuleEntry r, bool enabled) => new()
+    {
+        Id = r.Id,
+        Name = r.Name,
+        Enabled = enabled,
+        Match = r.Match,
+        Action = r.Action
+    };
 
     private void ApplyRuleToggleToRunningProcesses(RuleEntry toggledRule, bool enabled)
     {
@@ -389,7 +412,7 @@ public partial class MainWindow : Window
 
                     string name = process.ProcessName + ".exe";
                     string? path = null;
-                    try { path = process.MainModule?.FileName; } catch { }
+                    try { path = EnforcementService.GetProcessPath(pid); } catch { }
 
                     if (!RuleMatchesProcess(toggledRule, name, path ?? ""))
                         continue;

@@ -56,7 +56,7 @@
 │  └─────────────┘ └────────────┘ └──────────────────┘   │
 │                                                          │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │ AffinityEnforcementWatchdog (250ms re-apply loop) │   │
+│  │ AffinityEnforcementWatchdog (1000ms re-apply loop) │   │
 │  └──────────────────────────────────────────────────┘   │
 └──────────────────────┬───────────────────────────────────┘
                        │
@@ -850,7 +850,7 @@ WMI ProcessStartTrace 事件触发
 
 ### Watchdog 保活流程
 ```
-AffinityEnforcementWatchdog（250ms 循环）
+AffinityEnforcementWatchdog（1000ms 循环）
   → 遍历所有受管进程
     → 检测进程是否仍存活（否则清理 Job 句柄）
     → 检测进程亲和性是否被篡改

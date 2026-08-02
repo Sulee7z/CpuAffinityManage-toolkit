@@ -60,6 +60,8 @@ public partial class ProcessListViewModel : ViewModelBase
 
     partial void OnSortModeChanged(string value) => ApplyFilter();
 
+    partial void OnFilterModeChanged(string value) => ApplyFilter();
+
     partial void OnAutoRefreshChanged(bool value)
     {
         if (value)
@@ -119,7 +121,11 @@ public partial class ProcessListViewModel : ViewModelBase
         {
             var topo = _topoService.Detect();
             ulong cur;
-            try { cur = (ulong)Process.GetProcessById(i.Pid).ProcessorAffinity.ToInt64(); }
+            try
+            {
+                using (var proc = Process.GetProcessById(i.Pid))
+                    cur = (ulong)proc.ProcessorAffinity.ToInt64();
+            }
             catch { cur = AllCoresMask(); }
 
             var owner = (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
@@ -167,17 +173,39 @@ public partial class ProcessListViewModel : ViewModelBase
     public async void Refresh()
     {
         _refreshCts?.Cancel();
+        _refreshCts?.Dispose();
         _refreshCts = new CancellationTokenSource();
         var ct = _refreshCts.Token;
         IsLoading = true; LoadError = "";
         try
         {
             var items = await Task.Run(() => EnumerateProcesses(ct), ct);
-            if (!ct.IsCancellationRequested) { _allItems = items; ApplyFilter(); }
+            if (ct.IsCancellationRequested) return;
+            // The await continuation may run on a thread-pool thread (Refresh is
+            // also invoked from background tasks) — always publish to the UI thread
+            // so the ObservableCollection is only touched there.
+            RunOnUi(() =>
+            {
+                if (ct.IsCancellationRequested) return;
+                _allItems = items;
+                ApplyFilter();
+                IsLoading = false;
+            });
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { Log.Error(ex, "Enum failed"); LoadError = ex.Message; }
-        finally { if (!ct.IsCancellationRequested) IsLoading = false; }
+        catch (Exception ex) { Log.Error(ex, "Enum failed"); RunOnUi(() => { LoadError = ex.Message; IsLoading = false; }); }
+    }
+
+    private static void RunOnUi(Action action)
+    {
+        try
+        {
+            if (Dispatcher.UIThread.CheckAccess())
+                action();
+            else
+                Dispatcher.UIThread.Post(action);
+        }
+        catch { }
     }
 
     private void ApplyFilter()
@@ -186,6 +214,14 @@ public partial class ProcessListViewModel : ViewModelBase
         IEnumerable<ProcessItem> filtered = string.IsNullOrEmpty(query)
             ? _allItems
             : _allItems.Where(p => ProcessSearch.Matches(query, p.Name, p.Path, p.Pid));
+
+        // FilterMode: 全部进程 / 已匹配规则 / Job 强制 — previously a dead dropdown.
+        filtered = FilterMode switch
+        {
+            "已匹配规则" => filtered.Where(p => !string.IsNullOrEmpty(p.MatchedRule)),
+            "Job 强制" => filtered.Where(p => p.RuleLevel is "job-enforced" or "job-locked"),
+            _ => filtered
+        };
 
         filtered = SortMode switch
         {
@@ -385,6 +421,43 @@ public partial class ProcessListViewModel : ViewModelBase
                 Parent.StatusText = $"{i.Name}(PID {i.Pid}) · 完整性 {s.IntegrityLevel} · 句柄 {s.Handles} · 线程 {s.Threads} · 内存 {s.WorkingSetBytes / 1024 / 1024}MB · {net}";
         }
         catch (Exception ex) { Log.Error(ex, "info failed"); }
+    }
+
+    /// <summary>
+    /// Shows the process's thread-level scheduling summary in the status bar:
+    /// how many threads are pinned to a restricted core set, plus the main thread's
+    /// ideal processor. Full per-thread affinity control is available through the
+    /// HTTP API (/api/processes/{pid}/threads) and MCP tools (list_threads,
+    /// set_thread_affinity).
+    /// </summary>
+    [RelayCommand]
+    private void ShowThreads(ProcessItem i)
+    {
+        try
+        {
+            var threads = ProcessControlService.GetThreads(i.Pid);
+            if (threads.Count == 0)
+            {
+                if (Parent != null) Parent.StatusText = $"无法读取 {i.Name} 的线程信息(可能已退出或拒绝访问)";
+                return;
+            }
+
+            int total = _topoService.Detect().TotalLogicalProcessors;
+            ulong allMask = total >= 64 ? ~0UL : ((1UL << total) - 1);
+            int restricted = threads.Count(t => t.AffinityMask != 0 && t.AffinityMask != allMask);
+            var main = threads.FirstOrDefault(t => t.IsMainThread);
+            string mainInfo = main == null
+                ? "主线程未知"
+                : $"主线程#{main.Tid} 理想核 {(main.IdealProcessor >= 0 ? main.IdealProcessor.ToString() : "系统默认")} 亲和 0x{main.AffinityMask:X}";
+            var busiest = threads.OrderByDescending(t => t.TotalCpuMs).FirstOrDefault();
+            string busyInfo = busiest == null
+                ? ""
+                : $" · 最忙线程#{busiest.Tid} 已用 {busiest.TotalCpuMs / 1000.0:0.0}s";
+
+            if (Parent != null)
+                Parent.StatusText = $"{i.Name}(PID {i.Pid}) · 共 {threads.Count} 线程 · {restricted} 个被限制核心 · {mainInfo}{busyInfo}";
+        }
+        catch (Exception ex) { Log.Error(ex, "threads info failed"); }
     }
 
     private void Do(ProcessItem i, Func<bool> action, string ok, string fail, bool refresh = false)

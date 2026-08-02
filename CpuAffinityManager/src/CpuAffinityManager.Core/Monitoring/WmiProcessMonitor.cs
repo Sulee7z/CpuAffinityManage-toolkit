@@ -34,16 +34,19 @@ public class WmiProcessMonitor : IProcessMonitor
     {
         lock (_lock)
         {
+            if (_disposed)
+                return;
             if (_watcher != null)
                 return; // Already running
         }
 
+        ManagementEventWatcher? watcher = null;
         try
         {
             var query = new WqlEventQuery(
                 "SELECT * FROM Win32_ProcessStartTrace");
 
-            var watcher = new ManagementEventWatcher(query);
+            watcher = new ManagementEventWatcher(query);
 
             watcher.EventArrived += (sender, args) =>
             {
@@ -59,7 +62,11 @@ public class WmiProcessMonitor : IProcessMonitor
                         try
                         {
                             Thread.Sleep(200);
-                            onProcessStarted(new ProcessStartEvent(pid, processName));
+                            // Caller is disposed: skip delivery.
+                            bool disposed;
+                            lock (_lock) { disposed = _disposed; }
+                            if (!disposed)
+                                onProcessStarted(new ProcessStartEvent(pid, processName));
                         }
                         catch
                         {
@@ -83,7 +90,9 @@ public class WmiProcessMonitor : IProcessMonitor
         catch (ManagementException)
         {
             // WMI may not be available or user lacks permissions
-            // The monitor simply won't run — rules can still be applied manually
+            // The monitor simply won't run — rules can still be applied manually.
+            // Never leak the watcher: dispose it if Start() threw after creation.
+            try { watcher?.Dispose(); } catch { }
         }
     }
 

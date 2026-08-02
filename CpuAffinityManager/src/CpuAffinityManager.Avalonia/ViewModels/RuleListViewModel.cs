@@ -39,15 +39,31 @@ public partial class RuleListViewModel : ViewModelBase
 
     private int SelectedCount => Rules.Count(r => r.IsSelected);
 
+    /// <summary>
+    /// Publishes an Enabled change via the rule engine's copy-on-write AddRule,
+    /// instead of mutating the shared snapshot in place — the watchdog reads
+    /// Enabled concurrently and the snapshot is documented as immutable.
+    /// </summary>
+    private static RuleEntry CloneWithEnabled(RuleEntry r, bool enabled) => new()
+    {
+        Id = r.Id,
+        Name = r.Name,
+        Enabled = enabled,
+        Match = r.Match,
+        Action = r.Action
+    };
+
     private void HandleRuleToggled(RuleItem item, bool enabled)
     {
         var rule = _ruleEngine.Rules.FirstOrDefault(r => r.Id == item.Id);
         if (rule == null || rule.Enabled == enabled) return;
-        rule.Enabled = enabled;
+        _ruleEngine.AddRule(CloneWithEnabled(rule, enabled));
         if (Parent != null)
         {
-            Parent.NotifyRuleChanged();
-            Parent.ApplyRuleToggleToRunningProcesses(rule, enabled);
+            // The targeted toggle scan below already covers running processes —
+            // skip the extra full ScanAndApplyNow to avoid duplicate concurrent work.
+            Parent.NotifyRuleChanged(scan: false);
+            Parent.ApplyRuleToggleToRunningProcesses(CloneWithEnabled(rule, enabled), enabled);
             Parent.StatusText = enabled ? $"『{rule.Name}』已启用" : $"『{rule.Name}』已禁用";
         }
     }
@@ -69,7 +85,7 @@ public partial class RuleListViewModel : ViewModelBase
             var rule = _ruleEngine.Rules.FirstOrDefault(x => x.Id == r.Id);
             if (rule != null && rule.Enabled)
             {
-                rule.Enabled = false;
+                _ruleEngine.AddRule(CloneWithEnabled(rule, false));
                 r.Enabled = false;
             }
         }
@@ -98,7 +114,11 @@ public partial class RuleListViewModel : ViewModelBase
         foreach (var item in selected)
         {
             var rule = _ruleEngine.Rules.FirstOrDefault(r => r.Id == item.Id);
-            if (rule != null) { rule.Enabled = !allOn; item.Enabled = !allOn; }
+            if (rule != null)
+            {
+                _ruleEngine.AddRule(CloneWithEnabled(rule, !allOn));
+                item.Enabled = !allOn;
+            }
         }
         Parent?.NotifyRuleChanged();
         if (Parent != null) Parent.StatusText = allOn ? $"已关闭 {selected.Count} 条规则" : $"已启用 {selected.Count} 条规则";
@@ -108,7 +128,7 @@ public partial class RuleListViewModel : ViewModelBase
     private void ToggleRule(RuleItem item)
     {
         var rule = _ruleEngine.Rules.FirstOrDefault(r => r.Id == item.Id);
-        if (rule != null) { rule.Enabled = !rule.Enabled; Parent?.NotifyRuleChanged(); Refresh(); }
+        if (rule != null) { _ruleEngine.AddRule(CloneWithEnabled(rule, !rule.Enabled)); Parent?.NotifyRuleChanged(); Refresh(); }
     }
 
     [RelayCommand]

@@ -12,7 +12,7 @@
         <StackPanel Spacing="16">
 
             <!-- Stats Row -->
-            <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="12">
+            <Grid ColumnDefinitions="*,*,*,*,*,*" ColumnSpacing="12">
                 <!-- Processes -->
                 <Border Grid.Column="0" Classes.card="True" Padding="16">
                     <StackPanel Spacing="4">
@@ -58,6 +58,30 @@
                                    FontWeight="Bold"
                                    Foreground="{DynamicResource EcoreBrush}"/>
                         <TextBlock Text="能效核" FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                    </StackPanel>
+                </Border>
+                <!-- CPU Usage -->
+                <Border Grid.Column="4" Classes.card="True" Padding="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="CPU 占用" FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding CpuUsage}" FontSize="28"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="实时采样" FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                    </StackPanel>
+                </Border>
+                <!-- Memory Usage -->
+                <Border Grid.Column="5" Classes.card="True" Padding="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="物理内存" FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding MemUsage}" FontSize="28"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="已用 / 总量" FontSize="11"
                                    Foreground="{DynamicResource TextMutedBrush}"/>
                     </StackPanel>
                 </Border>

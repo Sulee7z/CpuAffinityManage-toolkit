@@ -24,7 +24,16 @@ public class JobObjectManager : IDisposable
         lock (_lock)
         {
             if (_pidToJob.TryGetValue(pid, out IntPtr existing))
-                return existing;
+            {
+                // A tracked job whose process has exited must not be reused: the
+                // PID may have been recycled by a brand-new process, which would
+                // otherwise inherit the stale affinity limit from the old job.
+                if (IsProcessAlive(pid))
+                    return existing;
+
+                Kernel32Imports.CloseHandle(existing);
+                _pidToJob.Remove(pid);
+            }
 
             string jobName = $"LzxCpuAffinity_Job_{pid}";
             IntPtr hJob = Kernel32Imports.CreateJobObject(IntPtr.Zero, jobName);
@@ -114,6 +123,43 @@ public class JobObjectManager : IDisposable
                 Kernel32Imports.CloseHandle(hJob);
                 _pidToJob.Remove(pid);
             }
+        }
+    }
+
+    /// <summary>
+    /// Releases every tracked Job Object whose PID is no longer running. This keeps
+    /// the handle table bounded on long sessions and prevents a recycled PID from
+    /// inheriting an old Job Object affinity limit.
+    /// </summary>
+    public void PruneJobs(ISet<int> livePids)
+    {
+        if (_disposed) return;
+
+        lock (_lock)
+        {
+            foreach (var kvp in _pidToJob.ToList())
+            {
+                if (livePids.Contains(kvp.Key))
+                    continue;
+                if (IsProcessAlive(kvp.Key))
+                    continue;
+
+                Kernel32Imports.CloseHandle(kvp.Value);
+                _pidToJob.Remove(kvp.Key);
+            }
+        }
+    }
+
+    private static bool IsProcessAlive(int pid)
+    {
+        try
+        {
+            using var p = System.Diagnostics.Process.GetProcessById(pid);
+            return true;
+        }
+        catch
+        {
+            return false;
         }
     }
 

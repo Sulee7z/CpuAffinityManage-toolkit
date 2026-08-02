@@ -371,6 +371,7 @@ public class McpIntegrationTests : IDisposable
             .ToList();
 
         Assert.Contains("get_topology", toolNames);
+        Assert.Contains("list_drives", toolNames);
         Assert.Contains("list_processes", toolNames);
         Assert.Contains("get_rules", toolNames);
         Assert.Contains("set_affinity", toolNames);
@@ -378,7 +379,11 @@ public class McpIntegrationTests : IDisposable
         Assert.Contains("scan_and_enforce", toolNames);
         Assert.Contains("add_rule", toolNames);
         Assert.Contains("remove_rule", toolNames);
-        Assert.Equal(8, toolNames.Count);
+        Assert.Contains("export_rules", toolNames);
+        Assert.Contains("import_rules", toolNames);
+        Assert.Contains("list_threads", toolNames);
+        Assert.Contains("set_thread_affinity", toolNames);
+        Assert.Equal(13, toolNames.Count);
     }
 
     #region Helpers

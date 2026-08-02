@@ -79,6 +79,17 @@ public static class PersistentAffinityStore
     public static bool AlreadyHardLocked(int pid) => _hardLocked.ContainsKey(pid);
     public static void MarkHardLocked(int pid) => _hardLocked[pid] = 1;
 
+    /// <summary>
+    /// Drops hard-lock markers for PIDs that are no longer running, so a recycled
+    /// PID is not wrongly treated as already hard-locked and skipped by the watchdog.
+    /// </summary>
+    public static void PruneHardLocked(ISet<int> livePids)
+    {
+        foreach (var pid in _hardLocked.Keys)
+            if (!livePids.Contains(pid))
+                _hardLocked.TryRemove(pid, out _);
+    }
+
     private static void Save()
     {
         try

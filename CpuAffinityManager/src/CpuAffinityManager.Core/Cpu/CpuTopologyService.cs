@@ -196,8 +196,11 @@ public class CpuTopologyService : ICpuTopologyService
                 offset += cpuSet.Size;
             }
 
-            if (result.Count < Math.Min(totalLogicalProcessors, 64))
-                result.Clear();
+            // On multi-group systems (>64 logical processors) GetSystemCpuSetInformation
+            // enumerates every group, but only group-0 logical processors are
+            // representable in a ulong mask. Keep the group-0 data instead of wiping
+            // it — partial P/E information is far more useful than assuming
+            // "all cores are P-cores" on hybrid machines with more than 64 LPs.
         }
         finally
         {

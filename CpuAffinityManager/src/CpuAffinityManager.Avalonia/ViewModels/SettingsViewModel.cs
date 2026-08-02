@@ -17,7 +17,7 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty] private bool _minimizeToTray = true;
     [ObservableProperty] private bool _runAtStartup;
     [ObservableProperty] private int _selectedThemeIndex;
-    [ObservableProperty] private string _appVersion = "v2.20.0";
+    [ObservableProperty] private string _appVersion = "v2.5.0";
 
     // true = 指定核心优先级高(手动选择的核心压过规则);false = 规则优先级高。
     [ObservableProperty] private bool _manualCoreWins = ManualAffinityRegistry.ManualWins;

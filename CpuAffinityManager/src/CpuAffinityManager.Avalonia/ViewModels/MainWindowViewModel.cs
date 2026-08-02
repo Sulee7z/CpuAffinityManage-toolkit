@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CpuAffinityManager.Cpu;
@@ -78,6 +79,7 @@ public partial class MainWindowViewModel : ViewModelBase
         try { _watchdog.Dispose(); } catch { }
         try { _processMonitor.Dispose(); } catch { }
         try { if (OperatingSystem.IsWindows()) ProcOps.SelfMemoryTrimmer.Stop(); } catch { }
+        try { Dashboard.StopStatsTimer(); } catch { }
         try { _enforcementService.ShutdownCleanup(); } catch { }
         Log.Information("Shutdown cleanup complete");
     }
@@ -92,6 +94,7 @@ public partial class MainWindowViewModel : ViewModelBase
             SidebarCpuInfo = $"{topo.TotalLogicalProcessors} threads · {topo.PcoreCount}P + {topo.EcoreCount}E";
             LoadRules();
             Dashboard.Refresh();
+            Dashboard.StartStatsTimer();
             StartProcessMonitor();
             _watchdog.Start();
             if (OperatingSystem.IsWindows())
@@ -123,19 +126,38 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             _processMonitor.Start(e =>
             {
-                try
+                // The WMI callback runs on a ThreadPool thread — marshal every UI
+                // touch (StatusText) back to the Avalonia UI thread.
+                RunOnUi(() =>
                 {
-                    string? path = EnforcementService.GetProcessPath(e.Pid);
-                    if (path == null) return;
-                    var rule = _ruleEngine.Match(e.ProcessName, path);
-                    if (rule != null)
+                    try
                     {
-                        _enforcementService.Apply(e.Pid, rule, _topoService.Detect());
-                        StatusText = $"已自动应用『{rule.Name}』→ {e.ProcessName} (PID {e.Pid})";
+                        // Protected processes may refuse path queries: treat the
+                        // path as empty so name-only rules still match.
+                        string path = EnforcementService.GetProcessPath(e.Pid) ?? string.Empty;
+                        var rule = _ruleEngine.Match(e.ProcessName, path);
+                        if (rule != null)
+                        {
+                            _enforcementService.Apply(e.Pid, rule, _topoService.Detect());
+                            StatusText = $"已自动应用『{rule.Name}』→ {e.ProcessName} (PID {e.Pid})";
+                        }
                     }
-                }
-                catch { }
+                    catch { }
+                });
             });
+        }
+        catch { }
+    }
+
+    /// <summary>Runs an action on the UI thread (no-op when already there).</summary>
+    private static void RunOnUi(Action action)
+    {
+        try
+        {
+            if (Dispatcher.UIThread.CheckAccess())
+                action();
+            else
+                Dispatcher.UIThread.Post(action);
         }
         catch { }
     }
@@ -156,11 +178,12 @@ public partial class MainWindowViewModel : ViewModelBase
         ScanAndApplyNow();
     }
 
-    public void NotifyRuleChanged()
+    public void NotifyRuleChanged(bool scan = true)
     {
         SaveRules();
         Dashboard.Refresh();
-        ScanAndApplyNow();
+        if (scan)
+            ScanAndApplyNow();
     }
 
     private void ScanAndApplyNow()
@@ -170,8 +193,11 @@ public partial class MainWindowViewModel : ViewModelBase
             try
             {
                 int n = _enforcementService.ScanAndEnforce();
-                StatusText = $"规则已更新 — 应用至 {n} 个进程";
-                ProcessList.Refresh();
+                RunOnUi(() =>
+                {
+                    StatusText = $"规则已更新 — 应用至 {n} 个进程";
+                    ProcessList.Refresh();
+                });
             }
             catch { }
         });
@@ -198,7 +224,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
                     string name = process.ProcessName + ".exe";
                     string? path = null;
-                    try { path = process.MainModule?.FileName; } catch { }
+                    try { path = EnforcementService.GetProcessPath(pid); } catch { }
 
                     if (!RuleMatchesProcess(toggledRule, name, path ?? ""))
                         continue;
@@ -233,10 +259,13 @@ public partial class MainWindowViewModel : ViewModelBase
                 }
             }
 
-            StatusText = enabled
-                ? $"规则『{toggledRule.Name}』已启用 — 应用到 {affected} 个进程"
-                : $"规则『{toggledRule.Name}』已禁用 — 已放开 {affected} 个进程";
-            ProcessList.Refresh();
+            RunOnUi(() =>
+            {
+                StatusText = enabled
+                    ? $"规则『{toggledRule.Name}』已启用 — 应用到 {affected} 个进程"
+                    : $"规则『{toggledRule.Name}』已禁用 — 已放开 {affected} 个进程";
+                ProcessList.Refresh();
+            });
         });
     }
 

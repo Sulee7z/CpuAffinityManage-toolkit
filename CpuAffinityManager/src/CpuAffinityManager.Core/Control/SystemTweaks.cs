@@ -446,9 +446,19 @@ public static class SystemTweaks
             };
             using var p = Process.Start(psi);
             if (p == null) return "";
-            string outp = p.StandardOutput.ReadToEnd();
-            string err = p.StandardError.ReadToEnd();
-            p.WaitForExit(6000);
+
+            // Read asynchronously, then wait with a timeout. The old sync
+            // ReadToEnd() before WaitForExit() made the timeout dead code — a hung
+            // child blocked the calling thread forever.
+            var outTask = p.StandardOutput.ReadToEndAsync();
+            var errTask = p.StandardError.ReadToEndAsync();
+            if (!p.WaitForExit(6000))
+            {
+                try { p.Kill(entireProcessTree: true); } catch { }
+            }
+            Task.WaitAll(new Task[] { outTask, errTask }, 5000);
+            string outp = outTask.IsCompletedSuccessfully ? outTask.Result : "";
+            string err = errTask.IsCompletedSuccessfully ? errTask.Result : "";
             return outp + "\n" + err;
         }
         catch { return ""; }

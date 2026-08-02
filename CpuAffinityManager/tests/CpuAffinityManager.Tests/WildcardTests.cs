@@ -74,6 +74,17 @@ public class WildcardTests
         Assert.False(result);
     }
 
+    [Theory]
+    [InlineData(@"D:\Games\Steam\game.exe", @"D:\Games\**|E:\Games\**", true)]
+    [InlineData(@"E:\Games\Steam\game.exe", @"D:\Games\**|E:\Games\**", true)]
+    [InlineData(@"F:\Games\game.exe", @"D:\Games\**|E:\Games\**", false)]
+    [InlineData(@"C:\Steam\game.exe", @"**\Steam\**|**\Games\**", true)]
+    public void MatchPath_OrAlternatives_ReturnsExpected(string path, string pattern, bool expected)
+    {
+        bool result = Wildcard.MatchPath(path, pattern);
+        Assert.Equal(expected, result);
+    }
+
     [Fact]
     public void MatchPath_SingleSegment_MatchesFilename()
     {

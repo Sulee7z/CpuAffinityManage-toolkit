@@ -91,9 +91,19 @@ public static class StartupService
             };
             using var p = Process.Start(psi);
             if (p == null) return "";
-            string o = p.StandardOutput.ReadToEnd();
-            string e = p.StandardError.ReadToEnd();
-            p.WaitForExit(6000);
+
+            // Read asynchronously, then wait with a timeout (the old sync ReadToEnd
+            // before WaitForExit made the timeout dead code and a hung reg.exe could
+            // block the calling thread indefinitely).
+            var outTask = p.StandardOutput.ReadToEndAsync();
+            var errTask = p.StandardError.ReadToEndAsync();
+            if (!p.WaitForExit(6000))
+            {
+                try { p.Kill(entireProcessTree: true); } catch { }
+            }
+            Task.WaitAll(new Task[] { outTask, errTask }, 5000);
+            string o = outTask.IsCompletedSuccessfully ? outTask.Result : "";
+            string e = errTask.IsCompletedSuccessfully ? errTask.Result : "";
             return o + "\n" + e;
         }
         catch { return ""; }

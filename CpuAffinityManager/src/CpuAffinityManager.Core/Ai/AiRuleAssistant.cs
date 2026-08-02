@@ -275,9 +275,11 @@ public sealed class AiRuleAssistant
         sb.AppendLine($"\n=== 系统环境 ===");
         sb.AppendLine(sysInfo);
         if (!string.IsNullOrWhiteSpace(games))
+        {
             sb.AppendLine($"\n=== 已检测应用 ===");
             sb.AppendLine(games);
             sb.AppendLine("只为我已检测到的应用生成规则,不要编造。");
+        }
         sb.AppendLine("\n策略:3A/竞技→p-cores+job-enforced+cpuPriority=high+gpuPriority=4+preferMode=dynamic+preferredCores=大核掩码");
         sb.Append("轻量→all-cores+soft-cpu-sets+gpuPriority=2; 后台/更新→e-cores+soft-cpu-sets+efficiencyMode+ioPriority=low+gpuPriority=0");
         return sb.ToString();

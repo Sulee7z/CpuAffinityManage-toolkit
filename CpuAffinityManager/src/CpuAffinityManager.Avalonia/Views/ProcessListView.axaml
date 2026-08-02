@@ -11,16 +11,19 @@
     <Grid RowDefinitions="Auto,*" IsEnabled="{Binding !IsLoading}">
         <!-- Search & Filter Bar -->
         <Border Grid.Row="0" Classes.card="True" Padding="12">
-            <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8">
                 <TextBox Watermark="🔍  搜索进程…" Text="{Binding SearchText}" FontSize="13"/>
                 <TextBlock Grid.Column="1" Text="排序" VerticalAlignment="Center" FontSize="12"
                            Foreground="{DynamicResource TextSecondaryBrush}"/>
                 <ComboBox Grid.Column="2" Width="110"
                           ItemsSource="{x:Static vm:ProcessListViewModel.SortModes}"
                           SelectedItem="{Binding SortMode}"/>
-                <CheckBox Grid.Column="3" Content="自动刷新" IsChecked="{Binding AutoRefresh}"
+                <ComboBox Grid.Column="3" Width="120"
+                          ItemsSource="{x:Static vm:ProcessListViewModel.FilterModes}"
+                          SelectedItem="{Binding FilterMode}"/>
+                <CheckBox Grid.Column="4" Content="自动刷新" IsChecked="{Binding AutoRefresh}"
                           VerticalAlignment="Center"/>
-                <Button Grid.Column="4" Content="↻ 刷新" Classes.ghost="True"
+                <Button Grid.Column="5" Content="↻ 刷新" Classes.ghost="True"
                         Command="{Binding RefreshCommand}"/>
             </Grid>
         </Border>
@@ -133,6 +136,7 @@
                                         <MenuItem Header="定位文件" Command="{Binding $parent[UserControl].DataContext.LocateFileCommand}" CommandParameter="{Binding .}"/>
                                         <MenuItem Header="复制进程信息" Command="{Binding $parent[UserControl].DataContext.CopyInfoCommand}" CommandParameter="{Binding .}"/>
                                         <MenuItem Header="查看句柄/线程/联网信息" Command="{Binding $parent[UserControl].DataContext.ShowConnectionsCommand}" CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="线程详情 (亲和性/理想核)" Command="{Binding $parent[UserControl].DataContext.ShowThreadsCommand}" CommandParameter="{Binding .}"/>
                                     </ContextMenu>
                                 </Border.ContextMenu>
                                 <Grid ColumnDefinitions="Auto,*,Auto,160">

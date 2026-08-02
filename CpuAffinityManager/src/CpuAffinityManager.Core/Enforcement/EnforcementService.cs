@@ -138,6 +138,16 @@ public class EnforcementService : IEnforcementService
         try { _jobManager.ReleaseAllLimitsAndDispose(); } catch { }
     }
 
+    /// <summary>
+    /// Releases tracked Job Object handles whose PIDs are no longer alive, so the
+    /// per-PID job table does not grow unboundedly over a long session and a reused
+    /// PID never inherits a stale affinity limit. Invoked periodically by the watchdog.
+    /// </summary>
+    public void PruneDeadJobs(ISet<int> livePids)
+    {
+        try { _jobManager.PruneJobs(livePids); } catch { }
+    }
+
     public bool Relax(int pid, CpuTopology topology)
     {
         if (pid <= 0)
@@ -235,12 +245,11 @@ public class EnforcementService : IEnforcementService
             // 6. Assign the process to the Job
             if (!_jobManager.AssignProcess(hJob, hProcess))
             {
-                // Process might already be in a Job — check error
-                int err = Marshal.GetLastWin32Error();
-                // ERROR_ACCESS_DENIED (5) = already in a Job that disallows assignment
-                // For now, fail silently. Future: try to nest job via NtSetInformationProcess
-                if (err == 5)
-                    return false;
+                // Process might already be in a Job (ERROR_ACCESS_DENIED = already
+                // in a Job that disallows assignment). The affinity limit is still
+                // set on the Job, but the process is not a member, so it doesn't
+                // apply — report failure and let the caller fall back to
+                // hard-affinity.
                 return false;
             }
 
@@ -390,11 +399,19 @@ public class EnforcementService : IEnforcementService
 
             try
             {
-                char[] buffer = new char[512];
-                uint size = (uint)buffer.Length;
-                if (Kernel32Imports.QueryFullProcessImageName(hProcess, 0, buffer, ref size))
+                // Grow the buffer on ERROR_INSUFFICIENT_BUFFER so deep paths
+                // (>512 chars) still resolve instead of returning null and
+                // silently skipping name-only rules.
+                const int ERROR_INSUFFICIENT_BUFFER = 122;
+                for (int capacity = 512; capacity <= 32768; capacity *= 2)
                 {
-                    return new string(buffer, 0, (int)size);
+                    char[] buffer = new char[capacity];
+                    uint size = (uint)buffer.Length;
+                    if (Kernel32Imports.QueryFullProcessImageName(hProcess, 0, buffer, ref size))
+                        return new string(buffer, 0, (int)size);
+
+                    if (Marshal.GetLastWin32Error() != ERROR_INSUFFICIENT_BUFFER)
+                        break;
                 }
             }
             finally

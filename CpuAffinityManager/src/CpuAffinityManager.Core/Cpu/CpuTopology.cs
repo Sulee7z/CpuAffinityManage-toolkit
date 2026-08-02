@@ -155,17 +155,29 @@ public class CpuTopology
 
     /// <summary>
     /// Builds a mask covering either the first or second half of all logical processors.
+    /// The first half gets the extra core when the count is odd. Only logical
+    /// processors 0..63 are representable in a ulong mask, so on systems with more
+    /// than 64 logical processors the second half may be partially or fully empty
+    /// (the OS arranges them into multiple processor groups).
     /// </summary>
     public static ulong BuildHalfMask(CpuTopology topology, bool firstHalf)
     {
-        int half = topology.TotalLogicalProcessors / 2;
-        if (half >= 64) half = 64;
+        int total = topology.TotalLogicalProcessors;
+        if (total <= 0)
+            return 0;
+
+        // Ceiling so a single-core machine gets "first half" = that one core,
+        // and odd counts put the extra core in the first half.
+        int half = (total + 1) / 2;
+
+        int start = firstHalf ? 0 : half;
+        int end = firstHalf ? half : total;
+        if (start >= 64)
+            return 0;
+        if (end > 64)
+            end = 64;
 
         ulong mask = 0;
-        int start = firstHalf ? 0 : half;
-        int end = firstHalf ? half : topology.TotalLogicalProcessors;
-        if (end > 64) end = 64;
-
         for (int i = start; i < end; i++)
             mask |= 1UL << i;
 

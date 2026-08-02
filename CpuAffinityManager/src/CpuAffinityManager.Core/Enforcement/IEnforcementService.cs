@@ -45,4 +45,11 @@ public interface IEnforcementService
     /// left on any process (including Windows system processes) after the app exits.
     /// </summary>
     void ShutdownCleanup();
+
+    /// <summary>
+    /// Releases tracked Job Object handles whose PIDs are no longer alive, so the
+    /// job table does not grow unboundedly and a reused PID never inherits a stale
+    /// affinity limit. Call periodically with the set of currently live PIDs.
+    /// </summary>
+    void PruneDeadJobs(System.Collections.Generic.ISet<int> livePids);
 }

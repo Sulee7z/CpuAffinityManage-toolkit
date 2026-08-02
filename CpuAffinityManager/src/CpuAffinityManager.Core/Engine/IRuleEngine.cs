@@ -36,6 +36,18 @@ public interface IRuleEngine
     bool RemoveRule(string ruleId);
 
     /// <summary>
+    /// Serializes the current rules to a JSON string (same format as the rules file).
+    /// </summary>
+    string ExportJson();
+
+    /// <summary>
+    /// Imports rules from a JSON string. replace=true replaces ALL rules; false
+    /// merges (matching IDs are overwritten by the imported ones).
+    /// </summary>
+    /// <returns>The number of imported rules. Throws on invalid JSON.</returns>
+    int ImportJson(string json, bool replace);
+
+    /// <summary>
     /// Returns a read-only view of all rules.
     /// </summary>
     IReadOnlyList<RuleEntry> Rules { get; }

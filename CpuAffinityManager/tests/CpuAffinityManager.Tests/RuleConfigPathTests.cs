@@ -5,8 +5,11 @@ namespace CpuAffinityManager.Tests;
 public class RuleConfigPathTests
 {
     [Fact]
-    public void FindDefaultRules_WalksUpToProjectConfigFolder()
+    public void FindBundledTemplate_WalksUpToProjectConfigFolder()
     {
+        // The walk-up template search is pure path logic (no LocalAppData state),
+        // so it can be tested hermetically. (FindDefaultRules itself always returns
+        // the writable %LOCALAPPDATA% copy and seeds it from the template.)
         string root = Path.Combine(Path.GetTempPath(), "pm-rules-" + Guid.NewGuid().ToString("N"));
         string nested = Path.Combine(root, "src", "App", "bin", "Debug", "net10.0-windows");
         string config = Path.Combine(root, "config");
@@ -18,7 +21,7 @@ public class RuleConfigPathTests
 
         try
         {
-            Assert.Equal(expected, RuleConfigPath.FindDefaultRules(nested));
+            Assert.Equal(expected, RuleConfigPath.FindBundledTemplate(nested));
         }
         finally
         {

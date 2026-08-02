@@ -176,6 +176,32 @@ AI 使用指南见 [docs/ai-guide.md](docs/ai-guide.md)。
 | 双路服务器第1路大核 | `p-cores@socket0` | `hard-affinity` |
 | 可移植规则（通吃所有机器） | `p-cores\|first-half` | `job-enforced` |
 
+## 更新记录（v2.5 新增）
+
+- **线程级亲和性管理**：新增 `list_threads`（MCP）与 `GET /api/processes/{pid}/threads`（HTTP）查看进程每个线程的亲和掩码 / 理想核 / 占用；`set_thread_affinity`（MCP）与 `POST /api/threads/affinity`（HTTP）可单独钉住某个线程（掩码 `0` = 还原为全核）。Avalonia 进程页右键新增「线程详情（亲和性/理想核）」。
+- **规则导入导出（AI 通道）**：MCP 新增 `export_rules` / `import_rules`，HTTP 新增 `GET /api/rules/export` 与 `POST /api/rules/import`（`replace` 参数选择替换全部或合并；合并时相同 ID 覆盖）。界面上的导入/导出按钮保留。
+- **仪表盘实时负载**：Avalonia 仪表盘新增 CPU 占用率与物理内存（已用/总量）实时卡片（2 秒采样，原生 API，无 WMI 开销）。
+- **进程列表新增「过滤」下拉**：全部进程 / 已匹配规则 / Job 强制（此前下拉框已存在但不生效）。
+- 版本统一为 v2.5.0（此前界面显示 v2.20.0、API 返回 2.4.0、MCP 返回 1.0.0，三处不一致）。
+
+## 更新记录（v2.5 修复的 Bug）
+
+- **修复：受保护进程命中不了纯进程名规则**（WMI 自动应用路径）：`QueryFullProcessImageName` 失败时改为按空路径继续匹配，与 `ScanAndEnforce` 行为一致（WPF / Avalonia / MCP 三处）。
+- **修复：socket 过滤规则被看门狗每秒反复重打**：看门狗计算期望掩码时未附加 `@socketN` 后缀，与 `Apply()` 实际执行的掩码不一致，导致每 tick 误判并重打 + 刷日志。
+- **修复：Job 对象句柄泄漏 + PID 复用误伤**：`JobObjectManager` 从不释放已退出进程的 Job 句柄（长会话句柄/内核对象无限增长）；现在看门狗每轮用存活 PID 清理，且 `GetOrCreateJob` 检测到 PID 被复用时会先释放旧 Job，避免新进程继承旧亲和性限制。`PersistentAffinityStore` 的硬锁标记同样随进程退出清理。
+- **修复：Avalonia 跨线程更新 UI**：WMI 回调、`ScanAndApplyNow`、规则切换扫描在后台线程写 `StatusText` / 进程列表（`async void`），现在统一封送到 UI 线程。
+- **修复：规则开关直接改写共享快照**：Avalonia 规则页与 WPF 规则勾选改为通过 `AddRule` 发布新副本（copy-on-write），不再原地修改看门狗正在读取的不可变快照；单条规则切换也不再触发重复的全量扫描。
+- **修复：`first-half`/`second-half` 掩码在 1 核与 >64 核机器上错误**：单核机器 `first-half` 之前返回 0；奇数核心现在把多余核分给前一半；>64 逻辑核时保证不溢出、不越界。
+- **修复：>64 核混合架构机器 P/E 核检测被整体丢弃**：`QueryCpuSetEfficiency` 拿到部分（group 0）数据后被 `Clear()` 清空，退化为"全是大核"；现在保留有效数据。
+- **修复：EcoQoS 开关会覆盖用户设置的 CPU 优先级**：关闭效率模式时不再把「高/高于常规」优先级强行改回常规；仅当进程仍处于 Idle 时才还原为 Normal。
+- **修复：`reg.exe`/`powercfg`/`netstat` 超时形同虚设**：同步 `ReadToEnd()` 在 `WaitForExit(超时)` 之前调用，子进程挂起会无限阻塞调用线程（可卡 UI）；改为异步读 + 超时杀进程。
+- **修复：MCP `list_processes` 用慢且易抛异常的 `Process.MainModule`**：改用原生 `QueryFullProcessImageName`（含 512 字符深路径自动扩容）。
+- **修复：AI 提示词缺大括号**：`BuildPrompt` 中 `if (games)` 之后的追加行无条件执行。
+- **修复：HTTP API 异常时响应未关闭 / 并发无上限**：catch 分支保证关闭响应；请求处理加 32 路并发上限。
+- **修复：WMI watcher 启动失败泄漏**：`watcher.Start()` 抛异常时释放已创建的 watcher；`Dispose` 后不再投递延迟回调。
+- **修复：通配符路径匹配不支持 `|` 多路径**：`MatchPath` 现在支持 `D:\Games\**|E:\Games\**` 式 OR 替代（与进程名通配符一致）。
+- **修复：过时测试**：`RuleEngineTests` 断言 rule-003 为 CPU-Z 规则（与现行默认规则不符）；`McpIntegrationTests` 未统计 `list_drives` 等新工具；`RuleConfigPathTests` 在 LocalAppData 已有副本时必然失败——均已修正。
+
 ## 更新记录（v2.4 新增·专业版功能第一批）
 
 - **进程动作与优先级**(进程页右键菜单):挂起 / 恢复 / 结束进程、CPU 优先级(高/常规/低)、IO 优先级(低/常规)、内存优先级(低)、效率模式 EcoQoS(开/关)、动态优先级。

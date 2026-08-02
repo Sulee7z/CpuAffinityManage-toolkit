@@ -61,18 +61,82 @@ public class RuleEngineTests
     }
 
     [Fact]
-    public void DefaultRules_CpuZRule_UsesECoresWithLockedJob()
+    public void DefaultRules_CpuZRule_IsDisabledAndDoesNotMatch()
     {
         var engine = new RuleEngine();
         engine.Load(RuleConfigPath.FindDefaultRules(AppContext.BaseDirectory));
 
+        // The CPU-Z anti-tamper rule ships DISABLED (rule-015), so it must not match.
         var result = engine.Match("CPU-Z-v2.08.0-CN.exe", @"J:\Tools\CPUZ\CPU-Z-v2.08.0-CN.exe");
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void DefaultRules_GameRule_MatchesWithPCoresAndJobEnforced()
+    {
+        var engine = new RuleEngine();
+        engine.Load(RuleConfigPath.FindDefaultRules(AppContext.BaseDirectory));
+
+        // rule-003 = 通用游戏目录 ("**\Games\**", p-cores|all-cores, job-enforced).
+        var result = engine.Match("game.exe", @"J:\Games\SomeGame\game.exe");
 
         Assert.NotNull(result);
         Assert.Equal("rule-003", result.Id);
-        Assert.Equal("e-cores|second-half", result.Action.Mode);
-        Assert.Equal("job-locked", result.Action.Level);
-        Assert.True(result.Action.Lock);
+        Assert.Equal("p-cores|all-cores", result.Action.Mode);
+        Assert.Equal("job-enforced", result.Action.Level);
+    }
+
+    [Fact]
+    public void ExportJson_ImportJson_RoundTripsRules()
+    {
+        var engine = CreateEngineWithRules();
+        string json = engine.ExportJson();
+        Assert.Contains("rule-001", json);
+
+        var other = new RuleEngine();
+        other.Load(RuleConfigPath.FindDefaultRules(AppContext.BaseDirectory));
+        int imported = other.ImportJson(json, replace: true);
+
+        Assert.Equal(3, imported);
+        Assert.Equal(3, other.Rules.Count);
+        Assert.Equal("rule-001", other.Rules[0].Id);
+    }
+
+    [Fact]
+    public void ImportJson_Merge_UpsertsAndKeepsOthers()
+    {
+        var engine = CreateEngineWithRules(); // 3 rules
+        string incoming = """
+            {"version":2,"rules":[
+              {"id":"rule-001","name":"Merged Rule 001","enabled":true,
+               "match":{"process":"game*.exe"},"action":{"mode":"e-cores","level":"hard-affinity"}},
+              {"id":"rule-999","name":"Brand New","enabled":true,
+               "match":{"process":"new*.exe"},"action":{"mode":"first-half","level":"soft-cpu-sets"}}
+            ]}
+            """;
+
+        int imported = engine.ImportJson(incoming, replace: false);
+
+        Assert.Equal(2, imported);
+        Assert.Equal(4, engine.Rules.Count); // 3 original + 1 new (1 overwritten)
+        Assert.Equal("Merged Rule 001", engine.Rules[0].Name);
+        Assert.Equal("e-cores", engine.Rules[0].Action.Mode);
+        Assert.True(engine.Rules.Any(r => r.Id == "rule-999"));
+    }
+
+    [Fact]
+    public void ImportJson_InvalidJson_Throws()
+    {
+        var engine = CreateEngineWithRules();
+        Assert.ThrowsAny<Exception>(() => engine.ImportJson("this is not json", replace: true));
+    }
+
+    [Fact]
+    public void ImportJson_EmptyInput_Throws()
+    {
+        var engine = CreateEngineWithRules();
+        Assert.Throws<ArgumentException>(() => engine.ImportJson("", replace: true));
     }
 
     [Fact]

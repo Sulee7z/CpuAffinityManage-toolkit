@@ -22,7 +22,7 @@ public class McpServer
     private readonly JsonSerializerOptions _jsonOptions;
 
     private const string ServerName = "cpu-affinity-manager";
-    private const string ServerVersion = "1.0.0";
+    private const string ServerVersion = "2.5.0";
 
     public McpServer()
     {
@@ -83,9 +83,10 @@ public class McpServer
 
             if (string.IsNullOrWhiteSpace(line)) continue;
 
+            JsonRpcRequest? request = null;
             try
             {
-                var request = JsonSerializer.Deserialize<JsonRpcRequest>(line, _jsonOptions);
+                request = JsonSerializer.Deserialize<JsonRpcRequest>(line, _jsonOptions);
                 if (request == null) continue;
 
                 var response = await HandleRequestAsync(request);
@@ -97,7 +98,7 @@ public class McpServer
                 Log.Error(ex, "Error processing MCP request");
                 var errorResponse = new JsonRpcResponse
                 {
-                    Id = null,
+                    Id = request?.Id,
                     Error = new JsonRpcError
                     {
                         Code = -32603,
@@ -358,6 +359,86 @@ public class McpServer
                     },
                     required = new[] { "ruleId" }
                 }
+            },
+            new
+            {
+                name = "export_rules",
+                description = "Export ALL rules as importable JSON text (same format as the rules file).",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new { },
+                    required = Array.Empty<string>()
+                }
+            },
+            new
+            {
+                name = "import_rules",
+                description = "Import rules from JSON text (same format as the rules file). replace=true replaces ALL rules; false merges (imported IDs overwrite matching ones).",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        json = new
+                        {
+                            type = "string",
+                            description = "Rules JSON text (e.g. from export_rules)"
+                        },
+                        replace = new
+                        {
+                            type = "boolean",
+                            description = "true = replace all rules; false/omitted = merge"
+                        }
+                    },
+                    required = new[] { "json" }
+                }
+            },
+            new
+            {
+                name = "list_threads",
+                description = "List a process's threads with per-thread CPU affinity masks, ideal processors and CPU time (to find the busiest threads).",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        pid = new
+                        {
+                            type = "integer",
+                            description = "Process ID to inspect"
+                        }
+                    },
+                    required = new[] { "pid" }
+                }
+            },
+            new
+            {
+                name = "set_thread_affinity",
+                description = "Set a single thread's CPU affinity mask. mask is a hex string; \"0\" clears the restriction (all logical processors).",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        pid = new
+                        {
+                            type = "integer",
+                            description = "Process ID"
+                        },
+                        tid = new
+                        {
+                            type = "integer",
+                            description = "Thread ID (see list_threads)"
+                        },
+                        mask = new
+                        {
+                            type = "string",
+                            description = "Hex affinity mask, e.g. \"0xFF\" (\"0\" = all cores)"
+                        }
+                    },
+                    required = new[] { "pid", "tid", "mask" }
+                }
             }
         };
 
@@ -371,8 +452,15 @@ public class McpServer
     private async Task<JsonRpcResponse> HandleToolsCallAsync(JsonRpcRequest request)
     {
         var paramsElement = request.Params;
-        string? toolName = paramsElement?.GetProperty("name").GetString();
-        var args = paramsElement?.GetProperty("arguments");
+        string? toolName = null;
+        JsonElement? args = null;
+        if (paramsElement is { ValueKind: JsonValueKind.Object } p)
+        {
+            if (p.TryGetProperty("name", out var nameProp) && nameProp.ValueKind == JsonValueKind.String)
+                toolName = nameProp.GetString();
+            if (p.TryGetProperty("arguments", out var argsProp))
+                args = argsProp;
+        }
 
         if (string.IsNullOrEmpty(toolName))
         {
@@ -390,7 +478,11 @@ public class McpServer
                 "get_topology" => ExecuteGetTopology(),
                 "list_drives" => ExecuteListDrives(),
                 "list_processes" => ExecuteListProcesses(args),
+                "list_threads" => ExecuteListThreads(args),
+                "set_thread_affinity" => ExecuteSetThreadAffinity(args),
                 "get_rules" => ExecuteGetRules(),
+                "export_rules" => ExecuteExportRules(),
+                "import_rules" => ExecuteImportRules(args),
                 "set_affinity" => ExecuteSetAffinity(args),
                 "apply_rule" => ExecuteApplyRule(args),
                 "scan_and_enforce" => ExecuteScanAndEnforce(),
@@ -476,8 +568,10 @@ public class McpServer
                 if (filter != null && !Engine.Wildcard.Match(name, filter, true))
                     continue;
 
-                string? path = null;
-                try { path = proc.MainModule?.FileName; } catch { }
+                // Fast native path query (QueryFullProcessImageName) instead of the
+                // slow, exception-prone Process.MainModule — protected processes
+                // (anti-cheat, system) otherwise get "(protected)" and throw.
+                string? path = EnforcementService.GetProcessPath(proc.Id);
 
                 processes.Add(new
                 {
@@ -671,6 +765,78 @@ public class McpServer
         if (removed) SaveRules();
 
         return new { removed, ruleId };
+    }
+
+    private object ExecuteExportRules()
+    {
+        return new
+        {
+            json = _ruleEngine.ExportJson(),
+            count = _ruleEngine.Rules.Count,
+            hint = "POST import_rules with { json } to load this back (replace=true replaces all rules)."
+        };
+    }
+
+    private object ExecuteImportRules(JsonElement? args)
+    {
+        if (args == null) throw new ArgumentException("Missing arguments");
+
+        string json = args.Value.GetProperty("json").GetString()!;
+        bool replace = false;
+        if (args.Value.TryGetProperty("replace", out var rp) && rp.ValueKind == JsonValueKind.True)
+            replace = true;
+
+        int imported;
+        try
+        {
+            imported = _ruleEngine.ImportJson(json, replace);
+        }
+        catch (Exception ex)
+        {
+            throw new ArgumentException("规则 JSON 无效: " + ex.Message);
+        }
+
+        SaveRules();
+        return new { imported, total = _ruleEngine.Rules.Count, replace };
+    }
+
+    private object ExecuteListThreads(JsonElement? args)
+    {
+        if (args == null) throw new ArgumentException("Missing arguments");
+
+        int pid = args.Value.GetProperty("pid").GetInt32();
+        var threads = ProcOps.ProcessControlService.GetThreads(pid);
+        return new
+        {
+            pid,
+            count = threads.Count,
+            threads = threads.Select(t => new
+            {
+                tid = t.Tid,
+                affinity = $"0x{t.AffinityMask:X}",
+                idealProcessor = t.IdealProcessor,
+                priority = t.PriorityLevel,
+                cpuMs = t.TotalCpuMs,
+                isMainThread = t.IsMainThread
+            })
+        };
+    }
+
+    private object ExecuteSetThreadAffinity(JsonElement? args)
+    {
+        if (args == null) throw new ArgumentException("Missing arguments");
+
+        int pid = args.Value.GetProperty("pid").GetInt32();
+        int tid = args.Value.GetProperty("tid").GetInt32();
+        string maskStr = args.Value.GetProperty("mask").GetString()!;
+
+        string hex = maskStr.Trim();
+        if (hex.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) hex = hex[2..];
+        if (!ulong.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out ulong mask))
+            throw new ArgumentException("mask must be a hex string (e.g. \"0xFF\"; \"0\" = all cores)");
+
+        bool ok = ProcOps.ProcessControlService.SetThreadAffinity(pid, tid, mask);
+        return new { success = ok, pid, tid, mask = $"0x{mask:X}" };
     }
 
     #endregion

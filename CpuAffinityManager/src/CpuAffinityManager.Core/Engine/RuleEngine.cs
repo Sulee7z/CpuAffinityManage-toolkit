@@ -126,4 +126,60 @@ public class RuleEngine : IRuleEngine
             return true;
         }
     }
+
+    /// <summary>
+    /// Serializes the current rules to a JSON string (same format as the rules
+    /// file, including version/settings headers).
+    /// </summary>
+    public string ExportJson()
+    {
+        var config = new RuleConfig
+        {
+            Version = 2,
+            Rules = new List<RuleEntry>(_rules)
+        };
+        return config.ToJson();
+    }
+
+    /// <summary>
+    /// Imports rules from a JSON string (same format as the rules file).
+    /// <paramref name="replace"/> = true replaces ALL current rules; false merges
+    /// with existing rules (matching IDs are overwritten by the imported ones).
+    /// Returns the number of imported rules. Throws on invalid JSON.
+    /// </summary>
+    public int ImportJson(string json, bool replace)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            throw new ArgumentException("导入内容为空");
+
+        var config = RuleConfig.Parse(json);
+        var incoming = config.Rules ?? new List<RuleEntry>();
+        if (incoming.Count == 0)
+            return 0;
+
+        lock (_writeLock)
+        {
+            if (replace)
+            {
+                _rules = incoming.ToArray();
+            }
+            else
+            {
+                var merged = new List<RuleEntry>(_rules);
+                foreach (var rule in incoming)
+                {
+                    if (string.IsNullOrWhiteSpace(rule.Id))
+                        continue;
+                    int existing = merged.FindIndex(r => r.Id == rule.Id);
+                    if (existing >= 0)
+                        merged[existing] = rule;
+                    else
+                        merged.Add(rule);
+                }
+                _rules = merged.ToArray();
+            }
+        }
+
+        return incoming.Count;
+    }
 }

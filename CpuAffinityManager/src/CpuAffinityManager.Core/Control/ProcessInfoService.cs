@@ -115,8 +115,16 @@ public static class ProcessInfoService
             };
             using var proc = Process.Start(psi);
             if (proc == null) return list;
-            string output = proc.StandardOutput.ReadToEnd();
-            proc.WaitForExit(5000);
+            // Read asynchronously, then wait with a timeout. The old sync
+            // ReadToEnd() before WaitForExit made the timeout dead code — a hung
+            // netstat could block the UI thread indefinitely.
+            var outTask = proc.StandardOutput.ReadToEndAsync();
+            if (!proc.WaitForExit(5000))
+            {
+                try { proc.Kill(entireProcessTree: true); } catch { }
+            }
+            Task.WaitAll(new Task[] { outTask }, 3000);
+            string output = outTask.IsCompletedSuccessfully ? outTask.Result : "";
 
             string pidStr = pid.ToString();
             foreach (var raw in output.Split('\n'))

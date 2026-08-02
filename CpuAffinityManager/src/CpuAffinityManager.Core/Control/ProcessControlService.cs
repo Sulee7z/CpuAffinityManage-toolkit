@@ -62,6 +62,146 @@ public static class ProcessControlService
         });
     }
 
+    // ── thread-level affinity (per-thread listing / pinning) ──
+
+    /// <summary>Snapshot of a single thread's scheduling state.</summary>
+    public sealed class ThreadInfo
+    {
+        public int Tid { get; init; }
+        public ulong AffinityMask { get; init; }
+        public int IdealProcessor { get; init; } = -1;
+        public string? PriorityLevel { get; init; }
+        public long TotalCpuMs { get; init; }
+        public bool IsMainThread { get; init; }
+    }
+
+    /// <summary>
+    /// Lists a process's threads with their current CPU affinity masks, ideal
+    /// processors and accumulated CPU time (for identifying the busiest threads).
+    /// Affinity/ideal are read natively (ProcessThread exposes those as write-only).
+    /// Returns an empty list for inaccessible/exited processes.
+    /// </summary>
+    public static List<ThreadInfo> GetThreads(int pid)
+    {
+        var list = new List<ThreadInfo>();
+        try
+        {
+            using var p = Process.GetProcessById(pid);
+            int mainTid = -1;
+            try
+            {
+                var threads = p.Threads;
+                if (threads.Count > 0) mainTid = threads[0].Id; // thread 0 = main
+            }
+            catch { }
+
+            foreach (ProcessThread t in p.Threads)
+            {
+                try
+                {
+                    list.Add(new ThreadInfo
+                    {
+                        Tid = t.Id,
+                        AffinityMask = QueryThreadAffinity(t.Id) ?? ~0UL,
+                        IdealProcessor = QueryThreadIdealProcessor(t.Id) ?? -1,
+                        PriorityLevel = t.PriorityLevel.ToString(),
+                        TotalCpuMs = (long)t.TotalProcessorTime.TotalMilliseconds,
+                        IsMainThread = t.Id == mainTid
+                    });
+                }
+                catch { /* thread may exit while enumerating */ }
+            }
+        }
+        catch (Exception ex) { Log.Debug(ex, "GetThreads failed pid {Pid}", pid); }
+        return list;
+    }
+
+    /// <summary>Reads a thread's affinity mask via NtQueryInformationThread(ThreadAffinity).</summary>
+    private static ulong? QueryThreadAffinity(int tid)
+    {
+        IntPtr h = OpenThread(THREAD_QUERY_LIMITED_INFORMATION | THREAD_QUERY_INFORMATION, (uint)tid);
+        if (h == IntPtr.Zero) return null;
+        try
+        {
+            if (NtQueryInformationThread(h, THREAD_INFORMATION_CLASS_AFFINITY, out UIntPtr aff, (int)UIntPtr.Size, out _) == 0)
+                return (ulong)aff.ToUInt64();
+        }
+        catch { }
+        finally { CloseHandle(h); }
+        return null;
+    }
+
+    /// <summary>Reads a thread's ideal processor (group 0) via GetThreadIdealProcessorEx.</summary>
+    private static int? QueryThreadIdealProcessor(int tid)
+    {
+        IntPtr h = OpenThread(THREAD_QUERY_LIMITED_INFORMATION | THREAD_QUERY_INFORMATION, (uint)tid);
+        if (h == IntPtr.Zero) return null;
+        try
+        {
+            var number = new PROCESSOR_NUMBER { Group = 0xFFFF };
+            if (GetThreadIdealProcessorEx(h, ref number) && number.Group == 0)
+                return number.Number;
+        }
+        catch { }
+        finally { CloseHandle(h); }
+        return null;
+    }
+
+    /// <summary>
+    /// Sets a single thread's CPU affinity mask. mask == 0 clears the restriction
+    /// (all logical processors). Returns false if the thread is not found or
+    /// access is denied.
+    /// </summary>
+    public static bool SetThreadAffinity(int pid, int tid, ulong mask)
+    {
+        ulong effective = mask == 0
+            ? CpuTopology.ClampToLogicalProcessors(~0UL, Environment.ProcessorCount)
+            : mask;
+        if (effective == 0)
+            return false;
+
+        try
+        {
+            using var p = Process.GetProcessById(pid);
+            foreach (ProcessThread t in p.Threads)
+            {
+                if (t.Id != tid) continue;
+                try
+                {
+                    t.ProcessorAffinity = (IntPtr)(long)effective;
+                    return true;
+                }
+                catch { return false; }
+            }
+            return false;
+        }
+        catch (Exception ex) { Log.Debug(ex, "SetThreadAffinity failed pid {Pid}", pid); return false; }
+    }
+
+    /// <summary>
+    /// Sets a single thread's ideal processor (core &lt; 0 clears the hint).
+    /// Returns false if the thread is not found or access is denied.
+    /// </summary>
+    public static bool SetThreadIdeal(int pid, int tid, int core)
+    {
+        try
+        {
+            using var p = Process.GetProcessById(pid);
+            foreach (ProcessThread t in p.Threads)
+            {
+                if (t.Id != tid) continue;
+                try
+                {
+                    t.IdealProcessor = core;
+                    return true;
+                }
+                catch { return false; }
+            }
+            return false;
+        }
+        catch (Exception ex) { Log.Debug(ex, "SetThreadIdeal failed pid {Pid}", pid); return false; }
+    }
+
     public static bool Suspend(int pid) => WithHandle(pid, PROCESS_SUSPEND_RESUME, h => NtSuspendProcess(h) == 0);
     public static bool Resume(int pid) => WithHandle(pid, PROCESS_SUSPEND_RESUME, h => NtResumeProcess(h) == 0);
 
@@ -92,9 +232,25 @@ public static class ProcessControlService
                 StateMask = on ? EXECUTION_SPEED : 0
             };
             bool ok = SetProcessInformation(h, PROC_INFO_PowerThrottling, ref state, (uint)Marshal.SizeOf<PROCESS_POWER_THROTTLING_STATE>());
-            // EcoQoS is most effective paired with the Idle priority class.
-            Managed(pid, p => p.PriorityClass = on ? ProcessPriorityClass.Idle : ProcessPriorityClass.Normal);
-            return ok;
+            if (!ok)
+                return false; // don't touch priority when the EcoQoS call itself failed
+
+            // EcoQoS is most effective paired with the Idle priority class. Only
+            // force the priority when it is OURS to change: turning ON sets Idle;
+            // turning OFF restores Normal only if the process is still Idle — so a
+            // user-set High/AboveNormal priority is never clobbered.
+            Managed(pid, p =>
+            {
+                try
+                {
+                    if (on)
+                        p.PriorityClass = ProcessPriorityClass.Idle;
+                    else if (p.PriorityClass == ProcessPriorityClass.Idle)
+                        p.PriorityClass = ProcessPriorityClass.Normal;
+                }
+                catch { /* priority is best-effort */ }
+            });
+            return true;
         });
 
     // ── working set (physical memory) ──
@@ -552,6 +708,11 @@ public static class ProcessControlService
     private const uint PROCESS_SUSPEND_RESUME = 0x0800;
     private const uint PROCESS_SET_LIMITED_INFORMATION = 0x2000;
 
+    // ── thread access rights ──
+    private const uint THREAD_QUERY_INFORMATION = 0x0040;
+    private const uint THREAD_QUERY_LIMITED_INFORMATION = 0x0800;
+    private const int THREAD_INFORMATION_CLASS_AFFINITY = 3; // ThreadAffinity
+
     // NtSetInformationProcess class for IO priority
     private const int ProcessIoPriority = 33;
     // Documented SetProcessInformation classes
@@ -570,10 +731,17 @@ public static class ProcessControlService
     [StructLayout(LayoutKind.Sequential)]
     private struct PROCESS_POWER_THROTTLING_STATE { public uint Version; public uint ControlMask; public uint StateMask; }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PROCESSOR_NUMBER { public ushort Group; public byte Number; public byte Reserved; }
+
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool CloseHandle(IntPtr h);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr OpenThread(uint access, uint tid);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool GetThreadIdealProcessorEx(IntPtr hThread, ref PROCESSOR_NUMBER lpIdealProcessor);
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool K32EmptyWorkingSet(IntPtr h);
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -589,6 +757,8 @@ public static class ProcessControlService
     private static extern int NtResumeProcess(IntPtr h);
     [DllImport("ntdll.dll")]
     private static extern int NtSetInformationProcess(IntPtr h, int infoClass, ref uint info, uint len);
+    [DllImport("ntdll.dll")]
+    private static extern int NtQueryInformationThread(IntPtr hThread, int infoClass, out UIntPtr info, int infoLen, out int retLen);
 
     [DllImport("user32.dll")]
     private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);

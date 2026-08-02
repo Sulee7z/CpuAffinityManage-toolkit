@@ -21,8 +21,12 @@ namespace CpuAffinityManager.Api;
 ///   GET  /api/health             → { ok: true }
 ///   GET  /api/topology           → CPU topology
 ///   GET  /api/drives             → all fixed drive roots (for path rules across drives)
-///   GET  /api/processes?filter=&amp;top=  → running processes
+///   GET  /api/processes?filter=&top=  → running processes
+///   GET  /api/processes/{pid}/threads → threads of a process (affinity masks)
+///   POST /api/threads/affinity   → set one thread's affinity  { pid, tid, mask }
 ///   GET  /api/rules              → all rules
+///   GET  /api/rules/export       → export rules as importable JSON
+///   POST /api/rules/import       → import rules  { json, replace? }
 ///   POST /api/rules              → add/update a rule  { name, processPattern, pathPattern?, mode, level, socketIndex?, lockBreakaway?, enabled? }
 ///   DELETE /api/rules/{id}       → remove a rule
 ///   POST /api/rules/apply        → apply a rule to a pid  { ruleId, pid }
@@ -38,6 +42,7 @@ public sealed class HttpApiServer
     private readonly IEnforcementService _enforcement;
     private readonly Action _persist;
     private readonly HttpListener _listener = new();
+    private readonly SemaphoreSlim _concurrency = new(32, 32);
     private readonly JsonSerializerOptions _json = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -73,7 +78,15 @@ public sealed class HttpApiServer
                 try { ctx = await _listener.GetContextAsync(); }
                 catch { break; } // listener stopped
 
-                _ = Task.Run(() => HandleAsync(ctx));
+                // Bound the per-request parallelism: bursty requests shouldn't be
+                // able to spawn unbounded thread-pool tasks (each fully buffers the
+                // request payload anyway).
+                _ = Task.Run(async () =>
+                {
+                    await _concurrency.WaitAsync();
+                    try { await HandleAsync(ctx); }
+                    finally { _concurrency.Release(); }
+                });
             }
         }
     }
@@ -111,11 +124,15 @@ public sealed class HttpApiServer
             int status = 200;
 
             if (method == "GET" && path == "/api") result = Manifest();
-            else if (method == "GET" && path == "/api/health") result = new { ok = true, server = "cpu-affinity-manager", version = "2.4.0" };
+            else if (method == "GET" && path == "/api/health") result = new { ok = true, server = "cpu-affinity-manager", version = "2.5.0" };
             else if (method == "GET" && path == "/api/topology") result = Topology();
             else if (method == "GET" && path == "/api/drives") result = Drives();
             else if (method == "GET" && path == "/api/processes") result = ListProcesses(req);
+            else if (method == "GET" && TryParseProcessThreadsPath(path, out int tpid)) result = ThreadsOf(tpid);
+            else if (method == "POST" && path == "/api/threads/affinity") result = await SetThreadAffinityAsync(req);
             else if (method == "GET" && path == "/api/rules") result = GetRules();
+            else if (method == "GET" && path == "/api/rules/export") result = ExportRules();
+            else if (method == "POST" && path == "/api/rules/import") result = await ImportRulesAsync(req);
             else if (method == "POST" && path == "/api/rules") result = await AddRuleAsync(req);
             else if (method == "DELETE" && path.StartsWith("/api/rules/")) result = RemoveRule(path.Substring("/api/rules/".Length));
             else if (method == "POST" && path == "/api/rules/apply") result = await ApplyRuleAsync(req);
@@ -128,7 +145,8 @@ public sealed class HttpApiServer
         catch (Exception ex)
         {
             Log.Error(ex, "HTTP API error");
-            try { await WriteJsonAsync(res, 400, new { error = ex.Message }); } catch { }
+            try { await WriteJsonAsync(res, 400, new { error = ex.Message }); }
+            catch { try { res.Close(); } catch { } }
         }
     }
 
@@ -137,7 +155,7 @@ public sealed class HttpApiServer
     private object Manifest() => new
     {
         name = "CPU Affinity Manager HTTP API",
-        version = "2.4.0",
+        version = "2.5.0",
         webUi = "在浏览器打开本地址即为网页控制台;编程调用返回本 JSON 清单。",
         description = "Read CPU topology/processes and create CPU-affinity rules programmatically. Intended for third-party AI agents.",
         endpoints = new object[]
@@ -145,7 +163,11 @@ public sealed class HttpApiServer
             new { method = "GET", path = "/api/topology", desc = "CPU topology (P/E cores, sockets, masks)" },
             new { method = "GET", path = "/api/drives", desc = "Fixed drive roots for cross-drive path rules" },
             new { method = "GET", path = "/api/processes?filter=&top=", desc = "Running processes" },
+            new { method = "GET", path = "/api/processes/{pid}/threads", desc = "Threads of a process with per-thread affinity masks" },
+            new { method = "POST", path = "/api/threads/affinity", desc = "Set one thread's CPU affinity", body = new { pid = "int", tid = "int", mask = "hex string (0x0 clears)" } },
             new { method = "GET", path = "/api/rules", desc = "List rules" },
+            new { method = "GET", path = "/api/rules/export", desc = "Export all rules as importable JSON" },
+            new { method = "POST", path = "/api/rules/import", desc = "Import rules from JSON", body = new { json = "rules JSON text", replace = "bool? (true=replace all, false/omitted=merge)" } },
             new { method = "POST", path = "/api/rules", desc = "Add/update a rule", body = new { name = "string", processPattern = "e.g. game*.exe", pathPattern = "optional, e.g. **\\\\steamapps\\\\common\\\\**", mode = "p-cores|first-half", level = "job-enforced", socketIndex = "int?", lockBreakaway = "bool?", enabled = "bool?" } },
             new { method = "DELETE", path = "/api/rules/{id}", desc = "Remove a rule" },
             new { method = "POST", path = "/api/rules/apply", desc = "Apply a rule to a pid", body = new { ruleId = "string", pid = "int" } },
@@ -303,6 +325,90 @@ public sealed class HttpApiServer
         };
         bool ok = _enforcement.Apply(pid, rule, _topoService.Detect());
         return new { success = ok, pid, mode, level };
+    }
+
+    // ── Thread-level affinity ──
+
+    private static bool TryParseProcessThreadsPath(string path, out int pid)
+    {
+        pid = 0;
+        const string prefix = "/api/processes/";
+        const string suffix = "/threads";
+        if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
+            !path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        string mid = path.Substring(prefix.Length, path.Length - prefix.Length - suffix.Length);
+        return int.TryParse(mid, out pid) && pid > 0;
+    }
+
+    private object ThreadsOf(int pid)
+    {
+        var threads = ProcOps.ProcessControlService.GetThreads(pid);
+        return new
+        {
+            pid,
+            count = threads.Count,
+            threads = threads.Select(t => new
+            {
+                tid = t.Tid,
+                affinity = $"0x{t.AffinityMask:X}",
+                idealProcessor = t.IdealProcessor,
+                priority = t.PriorityLevel,
+                cpuMs = t.TotalCpuMs,
+                isMainThread = t.IsMainThread
+            })
+        };
+    }
+
+    private async Task<object> SetThreadAffinityAsync(HttpListenerRequest req)
+    {
+        var body = await ReadJsonAsync(req);
+        int pid = GetInt(body, "pid") ?? throw new ArgumentException("pid is required");
+        int tid = GetInt(body, "tid") ?? throw new ArgumentException("tid is required");
+        string? maskStr = GetString(body, "mask");
+        ulong mask = 0;
+        if (!string.IsNullOrWhiteSpace(maskStr))
+        {
+            string hex = maskStr.Trim();
+            if (hex.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) hex = hex[2..];
+            if (!ulong.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out mask))
+                throw new ArgumentException("mask must be a hex string (e.g. \"0xFF\"; \"0\" = clear to all cores)");
+        }
+
+        bool ok = ProcOps.ProcessControlService.SetThreadAffinity(pid, tid, mask);
+        return new { success = ok, pid, tid, mask = $"0x{mask:X}" };
+    }
+
+    // ── Rules export / import ──
+
+    private object ExportRules() => new
+    {
+        version = 2,
+        rules = _ruleEngine.Rules,
+        hint = "POST /api/rules/import with { json } to load this back (replace=true replaces all rules)."
+    };
+
+    private async Task<object> ImportRulesAsync(HttpListenerRequest req)
+    {
+        var body = await ReadJsonAsync(req);
+        string json = GetString(body, "json") ?? throw new ArgumentException("json is required");
+        bool replace = GetBool(body, "replace") ?? false;
+
+        int imported;
+        try
+        {
+            imported = _ruleEngine.ImportJson(json, replace);
+        }
+        catch (Exception ex)
+        {
+            throw new ArgumentException("规则 JSON 无效: " + ex.Message);
+        }
+
+        _persist();
+        return new { imported, total = _ruleEngine.Rules.Count, replace };
     }
 
     // ── JSON helpers ──

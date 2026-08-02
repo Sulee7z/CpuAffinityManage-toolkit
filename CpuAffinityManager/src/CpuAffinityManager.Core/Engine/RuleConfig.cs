@@ -28,8 +28,23 @@ public class RuleConfig
             return new RuleConfig();
 
         string json = File.ReadAllText(filePath);
+        return Parse(json);
+    }
+
+    /// <summary>
+    /// Parses rules from a JSON string (AOT-safe, uses source gen).
+    /// Throws JsonException when the input is not valid rule JSON.
+    /// </summary>
+    public static RuleConfig Parse(string json)
+    {
         return JsonSerializer.Deserialize(json, RuleConfigJsonContext.Default.RuleConfig) ?? new RuleConfig();
     }
+
+    /// <summary>
+    /// Serializes this configuration to an indented JSON string (AOT-safe).
+    /// </summary>
+    public string ToJson()
+        => JsonSerializer.Serialize(this, RuleConfigJsonContext.Default.RuleConfig);
 
     /// <summary>
     /// Saves rules to a JSON file with indentation (AOT-safe, uses source gen).
