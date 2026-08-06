@@ -132,7 +132,7 @@ public partial class SystemToolsViewModel : ViewModelBase
         Status = "正在应用游戏模式…";
         Status = await Task.Run(() =>
         {
-            string a = SystemTweaks.SetPowerPlan(PowerPlan.HighPerformance);
+            string a = SystemTweaks.SetPowerPlan(PowerPlan.UltimatePerformance);
             string b = SystemTweaks.SetTimerResolution(0.5);
             string c = SystemTweaks.SetPrioritySeparation(38); // 前台加速
             return "游戏模式已应用 · " + a.Split('·', ',')[^1].Trim();

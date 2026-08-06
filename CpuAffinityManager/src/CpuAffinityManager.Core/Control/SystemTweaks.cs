@@ -389,7 +389,7 @@ public static class SystemTweaks
 
     /// <summary>
     /// One-click graphics/performance preset: hardware-accelerated GPU scheduling +
-    /// MMCSS gaming profile + high-performance power plan.
+    /// MMCSS gaming profile + Ultimate Performance power plan.
     /// </summary>
     public static string ApplyGraphicsPreset()
     {
@@ -397,8 +397,8 @@ public static class SystemTweaks
         {
             RunOut("reg.exe", "add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers\" /v HwSchMode /t REG_DWORD /d 2 /f");
             ApplyMmcss(true);
-            SetPowerPlan(PowerPlan.HighPerformance);
-            return "已应用图形性能优化(GPU 硬件调度 + 多媒体优先 + 高性能电源;GPU 调度需重启生效)";
+            SetPowerPlan(PowerPlan.UltimatePerformance);
+            return "已应用图形性能优化(GPU 硬件调度 + 多媒体优先 + 卓越性能电源;GPU 调度需重启生效)";
         }
         catch (Exception ex) { Log.Warning(ex, "ApplyGraphicsPreset failed"); return "设置失败:" + ex.Message; }
     }
