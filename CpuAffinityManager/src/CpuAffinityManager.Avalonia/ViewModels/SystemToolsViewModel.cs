@@ -38,6 +38,25 @@ public partial class SystemToolsViewModel : ViewModelBase
     /// <summary>前台加速是否生效。</summary>
     [ObservableProperty] private bool _foregroundAccelActive;
 
+    // ── 一键优化/成对操作:高亮跟随"上次选中的选项" ──
+
+    [ObservableProperty] private bool _gameModeActive;
+    [ObservableProperty] private bool _balancedModeActive;
+    [ObservableProperty] private bool _powerSaveActive;
+    [ObservableProperty] private bool _graphicsActive;
+
+    /// <summary>当前生效的一键优化模式名称(状态总览显示)。</summary>
+    [ObservableProperty] private string _currentPresetName = "未应用";
+
+    /// <summary>MMCSS 是否已优化(高亮"优化/恢复默认")。</summary>
+    [ObservableProperty] private bool _mmcssOptimized;
+
+    /// <summary>低延迟优化是否已应用。</summary>
+    [ObservableProperty] private bool _latencyOptimized;
+
+    /// <summary>是否正在防睡眠/息屏。</summary>
+    [ObservableProperty] private bool _wakeLockActive;
+
     /// <summary>CPU 摘要(品牌/型号/线程数)。</summary>
     [ObservableProperty] private string _cpuInfo = "";
 
@@ -118,6 +137,7 @@ public partial class SystemToolsViewModel : ViewModelBase
             string c = SystemTweaks.SetPrioritySeparation(38); // 前台加速
             return "游戏模式已应用 · " + a.Split('·', ',')[^1].Trim();
         });
+        SetPreset(0);
         RefreshStatus();
     }
 
@@ -133,6 +153,7 @@ public partial class SystemToolsViewModel : ViewModelBase
             SystemTweaks.SetPrioritySeparation(2);
             return "均衡模式已应用(平衡电源 + 默认计时器 + 默认前台)";
         });
+        SetPreset(1);
         RefreshStatus();
     }
 
@@ -142,6 +163,7 @@ public partial class SystemToolsViewModel : ViewModelBase
         if (!OperatingSystem.IsWindows()) { Status = "仅 Windows 可用"; return; }
         Status = "正在应用图形性能优化…";
         Status = await Task.Run(() => SystemTweaks.ApplyGraphicsPreset());
+        SetPreset(3);
         RefreshStatus();
     }
 
@@ -150,6 +172,7 @@ public partial class SystemToolsViewModel : ViewModelBase
     {
         if (!OperatingSystem.IsWindows()) { Status = "仅 Windows 可用"; return; }
         Status = SystemTweaks.ApplyMmcss(true);
+        MmcssOptimized = Status.StartsWith("已应用", StringComparison.Ordinal);
     }
 
     [RelayCommand]
@@ -157,6 +180,7 @@ public partial class SystemToolsViewModel : ViewModelBase
     {
         if (!OperatingSystem.IsWindows()) { Status = "仅 Windows 可用"; return; }
         Status = SystemTweaks.ApplyMmcss(false);
+        MmcssOptimized = false;
     }
 
     // ── DPC 延迟 / 响应速度优化 ──
@@ -167,6 +191,7 @@ public partial class SystemToolsViewModel : ViewModelBase
         if (!OperatingSystem.IsWindows()) { Status = "仅 Windows 可用"; return; }
         Status = "正在应用低延迟/高响应优化…";
         Status = await Task.Run(() => SystemTweaks.ApplyLatencyOptimization(true));
+        LatencyOptimized = Status.StartsWith("已应用", StringComparison.Ordinal);
         RefreshStatus();
     }
 
@@ -176,6 +201,7 @@ public partial class SystemToolsViewModel : ViewModelBase
         if (!OperatingSystem.IsWindows()) { Status = "仅 Windows 可用"; return; }
         Status = "正在恢复默认延迟/响应设置…";
         Status = await Task.Run(() => SystemTweaks.ApplyLatencyOptimization(false));
+        LatencyOptimized = false;
         RefreshStatus();
     }
 
@@ -191,6 +217,7 @@ public partial class SystemToolsViewModel : ViewModelBase
             SystemTweaks.SetPrioritySeparation(24);
             return "省电模式已应用(节能电源 + 默认计时器 + 后台均衡)";
         });
+        SetPreset(2);
         RefreshStatus();
     }
 
@@ -231,6 +258,7 @@ public partial class SystemToolsViewModel : ViewModelBase
     {
         if (!OperatingSystem.IsWindows()) { Status = "仅 Windows 可用"; return; }
         Status = SystemTweaks.SetSleepPrevention(true);
+        WakeLockActive = Status.StartsWith("已防止", StringComparison.Ordinal);
     }
 
     [RelayCommand]
@@ -238,6 +266,7 @@ public partial class SystemToolsViewModel : ViewModelBase
     {
         if (!OperatingSystem.IsWindows()) { Status = "仅 Windows 可用"; return; }
         Status = SystemTweaks.SetSleepPrevention(false);
+        WakeLockActive = false;
     }
 
     [RelayCommand]
@@ -322,5 +351,21 @@ public partial class SystemToolsViewModel : ViewModelBase
         if (!int.TryParse(value, out int v)) return;
         Status = await Task.Run(() => SystemTweaks.SetPrioritySeparation(v));
         RefreshStatus();
+    }
+
+    /// <summary>切换一键优化模式高亮:0=游戏, 1=均衡, 2=省电, 3=图形优化。</summary>
+    private void SetPreset(int index)
+    {
+        GameModeActive = index == 0;
+        BalancedModeActive = index == 1;
+        PowerSaveActive = index == 2;
+        GraphicsActive = index == 3;
+        CurrentPresetName = index switch
+        {
+            0 => "游戏模式",
+            1 => "均衡模式",
+            2 => "省电模式",
+            _ => "图形性能优化"
+        };
     }
 }

@@ -14,7 +14,7 @@
 
             <!-- ═══ 系统状态总览(选择反馈:实时显示当前生效项)═══ -->
             <Border Classes="card" Padding="18">
-                <StackPanel Spacing="12">
+                <StackPanel Spacing="14">
                     <Grid ColumnDefinitions="Auto,*">
                         <TextBlock Text="当前系统状态" FontSize="16" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextPrimaryBrush}"/>
@@ -23,8 +23,8 @@
                                    Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
                     </Grid>
 
-                    <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="10">
-                        <!-- CPU -->
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="24" RowSpacing="12">
+                        <!-- 处理器 -->
                         <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <Border Classes="status-dot ok"/>
@@ -32,20 +32,43 @@
                                            Foreground="{DynamicResource TextSecondaryBrush}"/>
                             </StackPanel>
                             <TextBlock Text="{Binding CpuInfo}" FontSize="13" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
-                        <!-- GPU -->
+                        <!-- 显卡 -->
                         <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <Border Classes="status-dot ok"/>
-                                <TextBlock Text="显卡 (游戏偏好=高性能独显)" FontSize="12"
+                                <TextBlock Text="显卡" FontSize="12"
                                            Foreground="{DynamicResource TextSecondaryBrush}"/>
                             </StackPanel>
                             <TextBlock Text="{Binding GpuSummary}" FontSize="13" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        <!-- 电源计划 -->
+                        <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Border Classes.status-dot="True" Classes.status-dot-ok="{Binding SelectedPowerPlanIndex, Converter={x:Static conv:IndexIsNonNegativeConverter.Instance}}"/>
+                                <TextBlock Text="电源计划" FontSize="12"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding CurrentPowerPlan}" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource PrimaryBrush}"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        <!-- 计时器分辨率 -->
+                        <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Border Classes.status-dot="True" Classes.status-dot-ok="{Binding SelectedTimerIndex, Converter={x:Static conv:IndexIsNonNegativeConverter.Instance}}"/>
+                                <TextBlock Text="计时器分辨率" FontSize="12"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding CurrentTimerMs}" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource PrimaryBrush}"/>
                         </StackPanel>
                         <!-- 前台加速 -->
-                        <StackPanel Grid.Row="0" Grid.Column="2" Spacing="4">
+                        <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <Border Classes="status-dot" Classes.status-dot-ok="{Binding ForegroundAccelActive}"
                                         Classes.status-dot-muted="{Binding !ForegroundAccelActive}"/>
@@ -59,27 +82,14 @@
                                        Foreground="{DynamicResource TextMutedBrush}"
                                        IsVisible="{Binding !ForegroundAccelActive}"/>
                         </StackPanel>
-                    </Grid>
-
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
-                        <!-- 电源计划 -->
-                        <StackPanel Spacing="4">
+                        <!-- 一键优化模式 -->
+                        <StackPanel Grid.Row="2" Grid.Column="1" Spacing="4">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Border Classes.status-dot="True" Classes.status-dot-ok="{Binding SelectedPowerPlanIndex, Converter={x:Static conv:IndexIsNonNegativeConverter.Instance}}"/>
-                                <TextBlock Text="当前电源计划" FontSize="12"
+                                <Border Classes.status-dot="True" Classes.status-dot-ok="{Binding GameModeActive}"/>
+                                <TextBlock Text="一键优化模式" FontSize="12"
                                            Foreground="{DynamicResource TextSecondaryBrush}"/>
                             </StackPanel>
-                            <TextBlock Text="{Binding CurrentPowerPlan}" FontSize="13" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource PrimaryBrush}"/>
-                        </StackPanel>
-                        <!-- 计时器分辨率 -->
-                        <StackPanel Spacing="4">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Border Classes.status-dot="True" Classes.status-dot-ok="{Binding SelectedTimerIndex, Converter={x:Static conv:IndexIsNonNegativeConverter.Instance}}"/>
-                                <TextBlock Text="当前计时器分辨率" FontSize="12"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
-                            </StackPanel>
-                            <TextBlock Text="{Binding CurrentTimerMs}" FontSize="13" FontWeight="SemiBold"
+                            <TextBlock Text="{Binding CurrentPresetName}" FontSize="13" FontWeight="SemiBold"
                                        Foreground="{DynamicResource PrimaryBrush}"/>
                         </StackPanel>
                     </Grid>
@@ -91,13 +101,17 @@
                 <StackPanel Spacing="12">
                     <TextBlock Text="一键优化预设" FontSize="16" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}"/>
-                    <TextBlock Text="组合应用电源模式 + 计时器分辨率 + 前台优先级,一步到位。"
+                    <TextBlock Text="组合应用电源模式 + 计时器分辨率 + 前台优先级,一步到位(当前生效模式会蓝色高亮)。"
                                FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Button Classes="primary" Content="🎮 游戏模式" Command="{Binding GameModeCommand}"/>
-                        <Button Classes="outline" Content="⚖ 均衡模式" Command="{Binding BalancedModeCommand}"/>
-                        <Button Classes="outline" Content="🔋 省电模式" Command="{Binding PowerSaveModeCommand}"/>
-                        <Button Classes="outline" Content="🖥 图形性能优化" Command="{Binding GraphicsPresetCommand}"/>
+                        <Button Classes="outline" Classes.active="{Binding GameModeActive}"
+                                Content="🎮 游戏模式" Command="{Binding GameModeCommand}"/>
+                        <Button Classes="outline" Classes.active="{Binding BalancedModeActive}"
+                                Content="⚖ 均衡模式" Command="{Binding BalancedModeCommand}"/>
+                        <Button Classes="outline" Classes.active="{Binding PowerSaveActive}"
+                                Content="🔋 省电模式" Command="{Binding PowerSaveModeCommand}"/>
+                        <Button Classes="outline" Classes.active="{Binding GraphicsActive}"
+                                Content="🖥 图形性能优化" Command="{Binding GraphicsPresetCommand}"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -110,8 +124,8 @@
                     <TextBlock Text="调整系统响应度与游戏任务的 GPU/CPU 优先级,减少多媒体卡顿(重启后完全生效)。"
                                FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Button Classes="primary" Content="优化(游戏/多媒体)" Command="{Binding MmcssOptimizeCommand}"/>
-                        <Button Classes="outline" Content="恢复默认" Command="{Binding MmcssResetCommand}"/>
+                        <Button Classes="outline" Classes.active="{Binding MmcssOptimized}" Content="优化(游戏/多媒体)" Command="{Binding MmcssOptimizeCommand}"/>
+                        <Button Classes="outline" Classes.active="{Binding !MmcssOptimized}" Content="恢复默认" Command="{Binding MmcssResetCommand}"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -124,8 +138,8 @@
                     <TextBlock Text="一键解泊全部 CPU 核心、关闭电源限流(Power Throttling)、多媒体最高响应并切换高性能电源,减少 DPC/ISR 延迟与输入卡顿(部分项重启后完全生效)。"
                                FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Button Classes="primary" Content="⚡ 应用低延迟优化" Command="{Binding LatencyOptimizeCommand}"/>
-                        <Button Classes="outline" Content="恢复默认" Command="{Binding LatencyResetCommand}"/>
+                        <Button Classes="outline" Classes.active="{Binding LatencyOptimized}" Content="⚡ 应用低延迟优化" Command="{Binding LatencyOptimizeCommand}"/>
+                        <Button Classes="outline" Classes.active="{Binding !LatencyOptimized}" Content="恢复默认" Command="{Binding LatencyResetCommand}"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -248,8 +262,8 @@
                     <TextBlock Text="下载/挂机时可防止系统自动睡眠和息屏。"
                                FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Button Classes="primary" Content="保持唤醒(防睡眠/息屏)" Command="{Binding PreventSleepCommand}"/>
-                        <Button Classes="outline" Content="恢复默认" Command="{Binding AllowSleepCommand}"/>
+                        <Button Classes="outline" Classes.active="{Binding WakeLockActive}" Content="保持唤醒(防睡眠/息屏)" Command="{Binding PreventSleepCommand}"/>
+                        <Button Classes="outline" Classes.active="{Binding !WakeLockActive}" Content="恢复默认" Command="{Binding AllowSleepCommand}"/>
                         <Button Classes="outline" Content="立即睡眠" Command="{Binding SleepNowCommand}"/>
                     </StackPanel>
                 </StackPanel>
