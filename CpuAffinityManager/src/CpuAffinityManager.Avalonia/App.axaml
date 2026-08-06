@@ -19,43 +19,96 @@
     <Application.Styles>
         <FluentTheme />
 
-        <!-- ═══ Win11 Card ═══ -->
+        <!-- ═══ 全局基础:字体渲染与过渡 ═══ -->
+        <Style Selector="TextBlock">
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        </Style>
+
+        <!-- ═══ Win11 Card — 更现代:大圆角 + 柔和阴影 + hover 微抬 ═══ -->
         <Style Selector="Border.card">
             <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
-            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="CornerRadius" Value="10"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BoxShadow" Value="{DynamicResource ShadowSm}"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.18"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.18"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.card:pointerover">
+            <Setter Property="BoxShadow" Value="{DynamicResource ShadowMd}"/>
+        </Style>
+        <!-- 禁用状态(如被关闭的规则)半透明显示 -->
+        <Style Selector="Border.card.disabled">
+            <Setter Property="Opacity" Value="0.55"/>
         </Style>
 
-        <!-- ═══ Accent (primary) button — Win11 ═══ -->
+        <!-- ═══ 仪表盘统计卡:左侧强调色条 + 数字 ═══ -->
+        <Style Selector="Border.stat-card">
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BoxShadow" Value="{DynamicResource ShadowSm}"/>
+            <Setter Property="Padding" Value="16,14"/>
+        </Style>
+        <Style Selector="Border.stat-card.accent-p">
+            <Setter Property="Background" Value="{DynamicResource PcoreBrush}"/>
+        </Style>
+        <Style Selector="Border.stat-card.accent-e">
+            <Setter Property="Background" Value="{DynamicResource EcoreBrush}"/>
+        </Style>
+        <Style Selector="Border.stat-card.accent-info">
+            <Setter Property="Background" Value="{DynamicResource InfoBrush}"/>
+        </Style>
+        <Style Selector="Border.stat-card.accent-success">
+            <Setter Property="Background" Value="{DynamicResource SuccessBrush}"/>
+        </Style>
+
+        <!-- ═══ Accent (primary) button — 圆角 6 + hover/按下过渡 ═══ -->
         <Style Selector="Button.primary">
             <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextOnPrimaryBrush}"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="16,8"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
         </Style>
         <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource PrimaryDarkBrush}"/>
+        </Style>
+        <Style Selector="Button.primary:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#FF003D75"/>
         </Style>
         <Style Selector="Button.primary:disabled">
             <Setter Property="Opacity" Value="0.5"/>
         </Style>
 
-        <!-- ═══ Standard (outline / secondary) button — Win11 ═══ -->
+        <!-- ═══ Standard (outline / secondary) button ═══ -->
         <Style Selector="Button.outline">
             <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="FontSize" Value="14"/>
-            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="16,8"/>
             <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
         </Style>
         <Style Selector="Button.outline:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
@@ -67,11 +120,57 @@
             <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontSize" Value="14"/>
-            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
         </Style>
         <Style Selector="Button.ghost:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+        </Style>
+
+        <!-- ═══ Active (current effective option) — 选择反馈 ═══ -->
+        <Style Selector="Button.active">
+            <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnPrimaryBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.active:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource PrimaryDarkBrush}"/>
+        </Style>
+        <Style Selector="Button.active:disabled">
+            <Setter Property="Opacity" Value="0.6"/>
+        </Style>
+
+        <!-- ═══ 状态点(status dot)════ -->
+        <Style Selector="Border.status-dot">
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="Height" Value="8"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Border.status-dot.ok">
+            <Setter Property="Background" Value="{DynamicResource SuccessBrush}"/>
+        </Style>
+        <Style Selector="Border.status-dot.warn">
+            <Setter Property="Background" Value="{DynamicResource WarningBrush}"/>
+        </Style>
+        <Style Selector="Border.status-dot.muted">
+            <Setter Property="Background" Value="{DynamicResource TextMutedBrush}"/>
         </Style>
 
         <!-- ═══ Danger button ═══ -->
@@ -80,24 +179,29 @@
             <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontSize" Value="14"/>
-            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="10,6"/>
         </Style>
         <Style Selector="Button.danger:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource DangerBgBrush}"/>
         </Style>
 
-        <!-- ═══ NavigationView-style nav item — Win11 ═══ -->
+        <!-- ═══ NavigationView-style nav item — 选中态更精致 ═══ -->
         <Style Selector="Button.nav">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Padding" Value="12,0,12,0"/>
+            <Setter Property="Padding" Value="14,0,12,0"/>
             <Setter Property="Height" Value="40"/>
-            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.18"/>
+                </Transitions>
+            </Setter>
         </Style>
         <Style Selector="Button.nav:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource SidebarHoverBrush}"/>
@@ -113,21 +217,36 @@
             <Setter Property="Background" Value="{DynamicResource SidebarActiveBrush}"/>
         </Style>
 
-        <!-- ═══ Process list row ═══ -->
+        <!-- ═══ 输入控件统一样式(圆角 6) ═══ -->
+        <Style Selector="TextBox, ComboBox, ToggleSwitch">
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="MinHeight" Value="32"/>
+        </Style>
+
+        <!-- ═══ Process list row — hover 圆角卡片化 ═══ -->
         <Style Selector="Border.process-row">
-            <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
-            <Setter Property="BorderThickness" Value="0,0,0,1"/>
             <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
         </Style>
         <Style Selector="Border.process-row:pointerover">
             <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
         </Style>
 
-        <!-- ═══ Tag / badge ═══ -->
+        <!-- ═══ Tag / badge — 胶囊 ═══ -->
         <Style Selector="Border.tag">
             <Setter Property="Background" Value="{DynamicResource PrimaryBgBrush}"/>
-            <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Padding" Value="8,3"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="9,3"/>
         </Style>
 
         <!-- ═══ Sidebar footer ═══ -->
@@ -135,9 +254,15 @@
             <Setter Property="Background" Value="{DynamicResource SidebarActiveBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="14,12"/>
             <Setter Property="Margin" Value="10,0,10,12"/>
+        </Style>
+
+        <!-- ═══ 滚动条:细滚动条,更贴合 Win11 ═══ -->
+        <Style Selector="ScrollBar Thumb">
+            <Setter Property="MinWidth" Value="4"/>
+            <Setter Property="MinHeight" Value="24"/>
         </Style>
 
     </Application.Styles>

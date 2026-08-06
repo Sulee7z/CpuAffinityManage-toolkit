@@ -89,7 +89,12 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             var topo = _topoService.Detect();
             Log.Information("Topology: {Topo}", topo);
-            SidebarCpuInfo = $"{topo.TotalLogicalProcessors} threads · {topo.PcoreCount}P + {topo.EcoreCount}E";
+            string vendorTag = topo.IsAmd ? "AMD" : topo.Vendor == CpuVendor.Intel ? "Intel" : "";
+            string hybridTag = topo.IsHybrid ? $" · {topo.PcoreCount}P+{topo.EcoreCount}E" : (topo.SmtEnabled ? " · SMT" : "");
+            string model = string.IsNullOrWhiteSpace(topo.CpuModelName) ? "" : topo.CpuModelName.Trim();
+            SidebarCpuInfo = string.IsNullOrEmpty(vendorTag)
+                ? $"{topo.TotalLogicalProcessors} threads{hybridTag}"
+                : $"{vendorTag} {model}\n{topo.TotalLogicalProcessors} threads{hybridTag}";
             LoadRules();
             Dashboard.Refresh();
             StartProcessMonitor();

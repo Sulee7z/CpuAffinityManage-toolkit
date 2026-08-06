@@ -30,7 +30,7 @@ public sealed class CoreSelectDialog : Window
     private readonly CheckBox _persist;
     private readonly ulong _all;
 
-    public CoreSelectDialog(string title, int total, ulong pMask, ulong eMask, ulong currentMask, bool persisted = false)
+    public CoreSelectDialog(string title, int total, ulong pMask, ulong eMask, ulong currentMask, bool persisted = false, bool simple = false)
     {
         if (total <= 0) total = 1;
         if (total > 64) total = 64;
@@ -46,7 +46,9 @@ public sealed class CoreSelectDialog : Window
         root.Children.Add(new TextBlock { Text = title, FontWeight = FontWeight.SemiBold, FontSize = 15 });
         root.Children.Add(new TextBlock
         {
-            Text = "勾选希望该进程运行的 CPU 核心(可多选),然后点“应用”。P=大核,E=小核。",
+            Text = simple
+                ? "勾选优先核心(可多选):进程仍可用全部核心,但单线程/主线程负载会优先跑在勾选的核心上。"
+                : "勾选希望该进程运行的 CPU 核心(可多选),然后点“应用”。P=大核,E=小核。",
             FontSize = 12, TextWrapping = TextWrapping.Wrap, Opacity = 0.7
         });
 
@@ -81,15 +83,16 @@ public sealed class CoreSelectDialog : Window
             Content = "🔒 硬锁(用 Job 对象锁定,进程/规则都无法改回;重启该进程才解除)",
             IsChecked = false
         };
-        root.Children.Add(_hardLock);
-
-        // Persist-across-restart option (keyed by exe name)
         _persist = new CheckBox
         {
             Content = "💾 重启软件后仍然保留(记住此程序,下次启动或新开实例自动套用)",
             IsChecked = persisted
         };
-        root.Children.Add(_persist);
+        if (!simple)
+        {
+            root.Children.Add(_hardLock);
+            root.Children.Add(_persist);
+        }
 
         // Actions
         var actions = new StackPanel

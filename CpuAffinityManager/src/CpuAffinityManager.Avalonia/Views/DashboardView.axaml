@@ -14,52 +14,64 @@
             <!-- Stats Row -->
             <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="12">
                 <!-- Processes -->
-                <Border Grid.Column="0" Classes.card="True" Padding="16">
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="进程" FontSize="11"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
-                        <TextBlock Text="{Binding ProcessCount}" FontSize="28"
-                                   FontWeight="Bold"
-                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <TextBlock Text="正在监控" FontSize="11"
-                                   Foreground="{DynamicResource TextMutedBrush}"/>
-                    </StackPanel>
+                <Border Grid.Column="0" Classes.stat-card="True">
+                    <Grid ColumnDefinitions="4,*">
+                        <Border Classes.stat-card-accent-info="True" CornerRadius="2,0,0,2"/>
+                        <StackPanel Grid.Column="1" Spacing="3" Margin="14,0,0,0">
+                            <TextBlock Text="进程" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding ProcessCount}" FontSize="28"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="正在监控" FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                        </StackPanel>
+                    </Grid>
                 </Border>
                 <!-- Rules -->
-                <Border Grid.Column="1" Classes.card="True" Padding="16">
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="生效规则" FontSize="11"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
-                        <TextBlock Text="{Binding RulesActive}" FontSize="28"
-                                   FontWeight="Bold"
-                                   Foreground="{DynamicResource PrimaryBrush}"/>
-                        <TextBlock Text="已配置" FontSize="11"
-                                   Foreground="{DynamicResource TextMutedBrush}"/>
-                    </StackPanel>
+                <Border Grid.Column="1" Classes.stat-card="True">
+                    <Grid ColumnDefinitions="4,*">
+                        <Border Classes.stat-card-accent-success="True" CornerRadius="2,0,0,2"/>
+                        <StackPanel Grid.Column="1" Spacing="3" Margin="14,0,0,0">
+                            <TextBlock Text="生效规则" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding RulesActive}" FontSize="28"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource PrimaryBrush}"/>
+                            <TextBlock Text="已配置" FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                        </StackPanel>
+                    </Grid>
                 </Border>
                 <!-- P-Cores -->
-                <Border Grid.Column="2" Classes.card="True" Padding="16">
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="大核 P-Core" FontSize="11"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
-                        <TextBlock Text="{Binding PCoreCount}" FontSize="28"
-                                   FontWeight="Bold"
-                                   Foreground="{DynamicResource PcoreBrush}"/>
-                        <TextBlock Text="性能核" FontSize="11"
-                                   Foreground="{DynamicResource TextMutedBrush}"/>
-                    </StackPanel>
+                <Border Grid.Column="2" Classes.stat-card="True">
+                    <Grid ColumnDefinitions="4,*">
+                        <Border Classes.stat-card-accent-p="True" CornerRadius="2,0,0,2"/>
+                        <StackPanel Grid.Column="1" Spacing="3" Margin="14,0,0,0">
+                            <TextBlock Text="大核 P-Core" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding PCoreCount}" FontSize="28"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource PcoreBrush}"/>
+                            <TextBlock Text="性能核" FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                        </StackPanel>
+                    </Grid>
                 </Border>
                 <!-- E-Cores -->
-                <Border Grid.Column="3" Classes.card="True" Padding="16">
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="小核 E-Core" FontSize="11"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
-                        <TextBlock Text="{Binding ECoreCount}" FontSize="28"
-                                   FontWeight="Bold"
-                                   Foreground="{DynamicResource EcoreBrush}"/>
-                        <TextBlock Text="能效核" FontSize="11"
-                                   Foreground="{DynamicResource TextMutedBrush}"/>
-                    </StackPanel>
+                <Border Grid.Column="3" Classes.stat-card="True">
+                    <Grid ColumnDefinitions="4,*">
+                        <Border Classes.stat-card-accent-e="True" CornerRadius="2,0,0,2"/>
+                        <StackPanel Grid.Column="1" Spacing="3" Margin="14,0,0,0">
+                            <TextBlock Text="小核 E-Core" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding ECoreCount}" FontSize="28"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource EcoreBrush}"/>
+                            <TextBlock Text="能效核" FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                        </StackPanel>
+                    </Grid>
                 </Border>
             </Grid>
 

@@ -46,7 +46,8 @@
             <ItemsControl ItemsSource="{Binding Rules}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:RuleItem">
-                        <Border Classes.card="True" Padding="14" Margin="0,0,0,6">
+                        <Border Classes.card="True" Classes.disabled="{Binding !Enabled}"
+                                Padding="14" Margin="0,0,0,6">
                             <Grid ColumnDefinitions="Auto,Auto,*,Auto">
                                 <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected}"
                                           VerticalAlignment="Center" Margin="0,0,10,0"/>

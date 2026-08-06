@@ -146,7 +146,7 @@ public sealed class HttpApiServer
             new { method = "GET", path = "/api/drives", desc = "Fixed drive roots for cross-drive path rules" },
             new { method = "GET", path = "/api/processes?filter=&top=", desc = "Running processes" },
             new { method = "GET", path = "/api/rules", desc = "List rules" },
-            new { method = "POST", path = "/api/rules", desc = "Add/update a rule", body = new { name = "string", processPattern = "e.g. game*.exe", pathPattern = "optional, e.g. **\\\\steamapps\\\\common\\\\**", mode = "p-cores|first-half", level = "job-enforced", socketIndex = "int?", lockBreakaway = "bool?", enabled = "bool?" } },
+            new { method = "POST", path = "/api/rules", desc = "Add/update a rule", body = new { name = "string", processPattern = "e.g. game*.exe", pathPattern = "optional, e.g. **\\\\steamapps\\\\common\\\\**", mode = "p-cores|first-half", level = "job-enforced", socketIndex = "int?", lockBreakaway = "bool?", enabled = "bool?", cpuPriority = "high|aboveNormal|belowNormal|low?", preferredCores = "hex mask, e.g. 0x1 (soft priority core)", preferMode = "dynamic|static|d2|d3?", schedulingPool = "hex mask, e.g. 0xFFF?" } },
             new { method = "DELETE", path = "/api/rules/{id}", desc = "Remove a rule" },
             new { method = "POST", path = "/api/rules/apply", desc = "Apply a rule to a pid", body = new { ruleId = "string", pid = "int" } },
             new { method = "POST", path = "/api/affinity", desc = "Set affinity on a pid", body = new { pid = "int", mode = "string", level = "string?", customMask = "hex?", socketIndex = "int?" } },
@@ -241,6 +241,11 @@ public sealed class HttpApiServer
         int? socketIndex = GetInt(body, "socketIndex");
         bool lockBreakaway = GetBool(body, "lockBreakaway") ?? false;
         bool enabled = GetBool(body, "enabled") ?? true;
+        // Preferred-core scheduling (soft "优先核心" hints)
+        string? preferredCores = GetString(body, "preferredCores");
+        int? preferredCore = GetInt(body, "preferredCore");
+        string? preferMode = GetString(body, "preferMode");
+        string? schedulingPool = GetString(body, "schedulingPool");
 
         var rule = new RuleEntry
         {
@@ -258,7 +263,11 @@ public sealed class HttpApiServer
                 Level = level,
                 SocketIndex = socketIndex,
                 Lock = lockBreakaway,
-                CpuPriority = cpuPriority
+                CpuPriority = cpuPriority,
+                PreferredCores = preferredCores,
+                PreferredCore = preferredCore,
+                PreferMode = preferMode,
+                SchedulingPool = schedulingPool
             }
         };
 
@@ -270,7 +279,12 @@ public sealed class HttpApiServer
     private object RemoveRule(string id)
     {
         bool removed = _ruleEngine.RemoveRule(id);
-        if (removed) _persist();
+        if (removed)
+        {
+            _persist();
+            // Release any processes that were enforced by the removed rule.
+            try { _enforcement.ScanAndEnforce(); } catch { }
+        }
         return new { removed, ruleId = id };
     }
 

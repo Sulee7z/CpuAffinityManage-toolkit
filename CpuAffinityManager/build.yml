@@ -48,46 +48,6 @@ jobs:
           Write-Host "Copied config to GUI"
         }
 
-    # ===================== GUI (WPF) =====================
-    - name: Build GUI (WPF)
-      run: dotnet build src/CpuAffinityManager.App/CpuAffinityManager.App.csproj -c Release --no-restore
-
-    - name: Publish GUI (WPF)
-      run: dotnet publish src/CpuAffinityManager.App/CpuAffinityManager.App.csproj `
-        -c Release `
-        -r win-x64 `
-        --self-contained `
-        -o ./bin/GUI-WPF
-
-    - name: Copy config to GUI-WPF
-      run: |
-        $configDir = "./bin/GUI-WPF/config"
-        New-Item -ItemType Directory -Force -Path $configDir | Out-Null
-        if (Test-Path "config/default-rules.json") {
-          Copy-Item "config/default-rules.json" $configDir -Force
-          Write-Host "Copied config to GUI-WPF"
-        }
-
-    # ===================== MCP Server =====================
-    - name: Build MCP Server
-      run: dotnet build src/CpuAffinityManager.Mcp/CpuAffinityManager.Mcp.csproj -c Release --no-restore
-
-    - name: Publish MCP Server
-      run: dotnet publish src/CpuAffinityManager.Mcp/CpuAffinityManager.Mcp.csproj `
-        -c Release `
-        -r win-x64 `
-        --self-contained `
-        -o ./bin/MCP
-
-    - name: Copy config to MCP
-      run: |
-        $configDir = "./bin/MCP/config"
-        New-Item -ItemType Directory -Force -Path $configDir | Out-Null
-        if (Test-Path "config/default-rules.json") {
-          Copy-Item "config/default-rules.json" $configDir -Force
-          Write-Host "Copied config to MCP"
-        }
-
     # ===================== Run Tests =====================
     - name: Run tests
       run: dotnet test tests/CpuAffinityManager.Tests/CpuAffinityManager.Tests.csproj -c Release --no-restore --verbosity normal
@@ -100,22 +60,6 @@ jobs:
       with:
         name: GUI-Avalonia
         path: ./bin/GUI
-        retention-days: 30
-
-    - name: Upload GUI (WPF) artifact
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: GUI-WPF
-        path: ./bin/GUI-WPF
-        retention-days: 30
-
-    - name: Upload MCP Server artifact
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: MCP-Server
-        path: ./bin/MCP
         retention-days: 30
 
   release:
@@ -133,18 +77,6 @@ jobs:
         name: GUI-Avalonia
         path: ./artifacts/GUI
 
-    - name: Download GUI (WPF) artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: GUI-WPF
-        path: ./artifacts/GUI-WPF
-
-    - name: Download MCP Server artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: MCP-Server
-        path: ./artifacts/MCP
-
     - name: Create release archives
       run: |
         $releaseDir = "./release-assets"
@@ -154,16 +86,6 @@ jobs:
         if (Test-Path "./artifacts/GUI") {
           Compress-Archive -Path "./artifacts/GUI/*" -DestinationPath "$releaseDir/CpuAffinityManager-GUI-Avalonia.zip" -Force
           Write-Host "Created: CpuAffinityManager-GUI-Avalonia.zip"
-        }
-        
-        if (Test-Path "./artifacts/GUI-WPF") {
-          Compress-Archive -Path "./artifacts/GUI-WPF/*" -DestinationPath "$releaseDir/CpuAffinityManager-GUI-WPF.zip" -Force
-          Write-Host "Created: CpuAffinityManager-GUI-WPF.zip"
-        }
-        
-        if (Test-Path "./artifacts/MCP") {
-          Compress-Archive -Path "./artifacts/MCP/*" -DestinationPath "$releaseDir/CpuAffinityManager-MCP-Server.zip" -Force
-          Write-Host "Created: CpuAffinityManager-MCP-Server.zip"
         }
 
     - name: Create GitHub Release
@@ -176,9 +98,7 @@ jobs:
           # 🚀 CPU Affinity Manager Release
           
           ## 📦 可用下载
-          - **CpuAffinityManager-GUI-Avalonia.zip** - 推荐使用的图形界面 (Avalonia)
-          - **CpuAffinityManager-GUI-WPF.zip** - WPF 版图形界面
-          - **CpuAffinityManager-MCP-Server.zip** - AI(MCP) 命令行服务
+          - **CpuAffinityManager-GUI-Avalonia.zip** - 图形界面 (Avalonia)
           
           ## ⚠️ 重要说明
           使用 job-enforced / job-locked 锁定级别时，请右键『以管理员身份运行』。

@@ -16,6 +16,11 @@ public class EnforcementService : IEnforcementService
     private readonly ICpuTopologyService _topoService;
     private readonly JobObjectManager _jobManager;
 
+    // PIDs we have enforced during this session. ScanAndEnforce relaxes entries that
+    // no longer match any enabled rule, so deleting/disabling a rule releases the
+    // processes it restricted instead of leaving them pinned forever.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<int, byte> _enforcedPids = new();
+
     public EnforcementService(IRuleEngine ruleEngine, ICpuTopologyService topoService)
     {
         _ruleEngine = ruleEngine;
@@ -72,6 +77,8 @@ public class EnforcementService : IEnforcementService
         // Apply optional professional extras (IO/memory priority, efficiency mode).
         if (applied)
         {
+            _enforcedPids[pid] = 0;
+
             if (!string.IsNullOrWhiteSpace(rule.Action.IoPriority))
                 ProcOps.ProcessControlService.SetIoPriority(pid, IoLevel(rule.Action.IoPriority));
             if (rule.Action.MemoryPriority is int mp)
@@ -142,6 +149,8 @@ public class EnforcementService : IEnforcementService
     {
         if (pid <= 0)
             return false;
+
+        _enforcedPids.TryRemove(pid, out _);
 
         ulong mask = CpuTopology.BuildMask(topology, "all-cores");
         if (mask == 0)
@@ -253,7 +262,9 @@ public class EnforcementService : IEnforcementService
     }
 
     /// <summary>
-    /// Scans all running processes and applies matching rules.
+    /// Scans all running processes and applies matching rules. Processes that were
+    /// enforced during this session but no longer match any enabled rule are relaxed
+    /// (e.g. after a rule is deleted), so stale restrictions never linger.
     /// </summary>
     public int ScanAndEnforce()
     {
@@ -267,6 +278,7 @@ public class EnforcementService : IEnforcementService
             if (r.Enabled && !string.IsNullOrEmpty(r.Match.Path)) { needPath = true; break; }
         }
 
+        var alivePids = new HashSet<int>();
         foreach (var process in Process.GetProcesses())
         {
             try
@@ -274,6 +286,7 @@ public class EnforcementService : IEnforcementService
                 int pid = process.Id;
                 if (pid is 0 or 4)
                     continue;
+                alivePids.Add(pid);
 
                 string processName = process.ProcessName + ".exe";
 
@@ -283,8 +296,16 @@ public class EnforcementService : IEnforcementService
                 string fullPath = needPath ? (GetProcessPath(pid) ?? string.Empty) : string.Empty;
 
                 var rule = _ruleEngine.Match(processName, fullPath);
-                if (rule != null && Apply(pid, rule, topology))
-                    affected++;
+                if (rule != null)
+                {
+                    if (Apply(pid, rule, topology))
+                        affected++;
+                }
+                else if (_enforcedPids.ContainsKey(pid))
+                {
+                    // Previously enforced, now matches nothing — release it.
+                    Relax(pid, topology);
+                }
             }
             catch
             {
@@ -294,6 +315,13 @@ public class EnforcementService : IEnforcementService
             {
                 try { process.Dispose(); } catch { }
             }
+        }
+
+        // Drop bookkeeping for pids that no longer exist.
+        foreach (var pid in _enforcedPids.Keys)
+        {
+            if (!alivePids.Contains(pid))
+                _enforcedPids.TryRemove(pid, out _);
         }
 
         return affected;

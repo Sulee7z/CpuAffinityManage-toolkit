@@ -47,7 +47,7 @@
                 <Grid RowDefinitions="Auto,*,Auto" Margin="0,4,0,0">
 
                     <!-- Nav items -->
-                    <StackPanel Grid.Row="0" Margin="10,8,10,0" Spacing="3">
+                    <StackPanel Grid.Row="0" Margin="10,8,10,0" Spacing="4">
                         <Button Classes="nav" Classes.nav-selected="{Binding IsDashboardSelected}"
                                 Command="{Binding NavigateToDashboardCommand}">
                             <StackPanel Orientation="Horizontal" Spacing="12">

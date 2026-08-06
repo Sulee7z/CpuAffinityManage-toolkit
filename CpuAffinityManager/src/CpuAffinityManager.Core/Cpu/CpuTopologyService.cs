@@ -119,6 +119,9 @@ public class CpuTopologyService : ICpuTopologyService
         int socketCount = socketResult.socketCount;
         List<ulong> socketMasks = socketResult.socketMasks;
 
+        // Step 5: Detect vendor + model name (AMD / Intel)
+        var (vendor, modelName) = DetectVendor();
+
         return new CpuTopology
         {
             TotalLogicalProcessors = totalLogical,
@@ -134,7 +137,42 @@ public class CpuTopologyService : ICpuTopologyService
             SocketCount = socketCount,
             SocketMasks = socketMasks,
             SmtSiblingMask = smtSiblingMask,
+            Vendor = vendor,
+            CpuModelName = modelName,
         };
+    }
+
+    /// <summary>
+    /// Detects CPU vendor + model name from the registry (works for both AMD and Intel,
+    /// no CPUID required). AMD systems get AMD topology semantics (CCD, CPPC best core).
+    /// </summary>
+    private static (CpuVendor vendor, string modelName) DetectVendor()
+    {
+        try
+        {
+            const string cpuKey = @"HARDWARE\DESCRIPTION\System\CentralProcessor\0";
+            string? name = Microsoft.Win32.Registry.GetValue(
+                @"HKEY_LOCAL_MACHINE\" + cpuKey, "ProcessorNameString", "") as string;
+            string? identifier = Microsoft.Win32.Registry.GetValue(
+                @"HKEY_LOCAL_MACHINE\" + cpuKey, "Identifier", "") as string;
+
+            name = string.IsNullOrWhiteSpace(name) ? "" : name.Trim();
+            identifier = string.IsNullOrWhiteSpace(identifier) ? "" : identifier;
+
+            CpuVendor vendor = CpuVendor.Unknown;
+            if (name.Contains("AMD", StringComparison.OrdinalIgnoreCase)
+                || identifier.Contains("AuthenticAMD", StringComparison.OrdinalIgnoreCase))
+                vendor = CpuVendor.Amd;
+            else if (name.Contains("Intel", StringComparison.OrdinalIgnoreCase)
+                     || identifier.Contains("GenuineIntel", StringComparison.OrdinalIgnoreCase))
+                vendor = CpuVendor.Intel;
+
+            return (vendor, name);
+        }
+        catch
+        {
+            return (CpuVendor.Unknown, "");
+        }
     }
 
     /// <summary>

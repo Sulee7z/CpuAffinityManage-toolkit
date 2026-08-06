@@ -195,6 +195,32 @@ public static class SystemTweaks
         catch (Exception ex) { Log.Warning(ex, "SetPrioritySeparation failed"); return "设置失败:" + ex.Message; }
     }
 
+    // ── 状态查询(供 UI 显示"当前生效项",实现选择反馈)──
+
+    /// <summary>读取当前激活的电源计划名称(如 "高性能")。</summary>
+    public static string GetCurrentPowerPlanName()
+    {
+        try { return ExtractSchemeName(RunOut("powercfg.exe", "/getactivescheme")); }
+        catch { return "未知"; }
+    }
+
+    /// <summary>读取当前计时器分辨率(ms),失败返回 -1。</summary>
+    public static double GetTimerResolutionMs() => QueryTimerMs();
+
+    /// <summary>读取 Win32PrioritySeparation 当前值(默认 2)。</summary>
+    public static int GetPrioritySeparation()
+    {
+        try
+        {
+            string q = RunOut("reg.exe", "query \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\PriorityControl\" /v Win32PrioritySeparation");
+            var m = Regex.Match(q, @"Win32PrioritySeparation\s+REG_DWORD\s+0x([0-9a-fA-F]+)");
+            if (m.Success && int.TryParse(m.Groups[1].Value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int got))
+                return got;
+        }
+        catch { }
+        return 2;
+    }
+
     // ── Sleep / display control ──
 
     /// <summary>Keeps the system (and optionally display) awake, or restores normal behavior.</summary>
@@ -434,15 +460,18 @@ public static class SystemTweaks
     {
         try
         {
-            // Do NOT force UTF-8: powercfg/reg print in the console OEM codepage (e.g. GBK
-            // on Chinese Windows). Letting .NET use the default console encoding keeps
-            // localized scheme names readable. GUID/hex parsing is ASCII either way.
+            // powercfg/reg print in the console OEM codepage (e.g. GBK on Chinese Windows).
+            // Decode with the OEM code page so localized scheme names come out readable.
+            System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+            var oem = System.Text.Encoding.GetEncoding(CultureInfo.CurrentCulture.TextInfo.OEMCodePage);
             var psi = new ProcessStartInfo(file, args)
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
-                RedirectStandardError = true
+                RedirectStandardError = true,
+                StandardOutputEncoding = oem,
+                StandardErrorEncoding = oem
             };
             using var p = Process.Start(psi);
             if (p == null) return "";

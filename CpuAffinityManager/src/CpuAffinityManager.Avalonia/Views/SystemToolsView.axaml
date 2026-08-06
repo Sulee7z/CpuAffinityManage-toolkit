@@ -1,6 +1,7 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CpuAffinityManager.Avalonia.ViewModels"
+             xmlns:conv="using:CpuAffinityManager.Avalonia.Converters"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="760"
@@ -11,8 +12,79 @@
     <ScrollViewer>
         <StackPanel Spacing="12">
 
-            <TextBlock Text="部分系统级操作需要以管理员身份运行" FontSize="12"
-                       Foreground="{DynamicResource TextMutedBrush}"/>
+            <!-- ═══ 系统状态总览(选择反馈:实时显示当前生效项)═══ -->
+            <Border Classes="card" Padding="18">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <TextBlock Text="当前系统状态" FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Grid.Column="1" Text="部分系统级操作需要以管理员身份运行"
+                                   FontSize="12" HorizontalAlignment="Right"
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="10">
+                        <!-- CPU -->
+                        <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Border Classes="status-dot ok"/>
+                                <TextBlock Text="处理器" FontSize="12"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding CpuInfo}" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <!-- GPU -->
+                        <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Border Classes="status-dot ok"/>
+                                <TextBlock Text="显卡 (游戏偏好=高性能独显)" FontSize="12"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding GpuSummary}" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <!-- 前台加速 -->
+                        <StackPanel Grid.Row="0" Grid.Column="2" Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Border Classes="status-dot" Classes.status-dot-ok="{Binding ForegroundAccelActive}"
+                                        Classes.status-dot-muted="{Binding !ForegroundAccelActive}"/>
+                                <TextBlock Text="前台优先加速" FontSize="12"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </StackPanel>
+                            <TextBlock Text="已生效" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource SuccessBrush}"
+                                       IsVisible="{Binding ForegroundAccelActive}"/>
+                            <TextBlock Text="默认(未加速)" FontSize="13"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       IsVisible="{Binding !ForegroundAccelActive}"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                        <!-- 电源计划 -->
+                        <StackPanel Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Border Classes.status-dot="True" Classes.status-dot-ok="{Binding SelectedPowerPlanIndex, Converter={x:Static conv:IndexIsNonNegativeConverter.Instance}}"/>
+                                <TextBlock Text="当前电源计划" FontSize="12"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding CurrentPowerPlan}" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource PrimaryBrush}"/>
+                        </StackPanel>
+                        <!-- 计时器分辨率 -->
+                        <StackPanel Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Border Classes.status-dot="True" Classes.status-dot-ok="{Binding SelectedTimerIndex, Converter={x:Static conv:IndexIsNonNegativeConverter.Instance}}"/>
+                                <TextBlock Text="当前计时器分辨率" FontSize="12"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding CurrentTimerMs}" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource PrimaryBrush}"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
 
             <!-- 一键优化预设 -->
             <Border Classes="card" Padding="20">
@@ -91,14 +163,23 @@
             <!-- 计时器分辨率 -->
             <Border Classes="card" Padding="20">
                 <StackPanel Spacing="12">
-                    <TextBlock Text="计时器分辨率" FontSize="16" FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextPrimaryBrush}"/>
-                    <TextBlock Text="降低计时器分辨率可提升游戏/音频响应,但略增功耗。"
-                               FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="计时器分辨率" FontSize="16" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="降低计时器分辨率可提升游戏/音频响应,但略增功耗。"
+                                       FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                        <Border Grid.Column="1" VerticalAlignment="Center" Background="{DynamicResource PrimaryBgBrush}"
+                                CornerRadius="10" Padding="10,4">
+                            <TextBlock Text="{Binding CurrentTimerMs, StringFormat=当前: {0}}" FontSize="12"
+                                       FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}"/>
+                        </Border>
+                    </Grid>
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Button Classes="outline" Content="0.5 ms" Command="{Binding ApplyTimerCommand}" CommandParameter="0.5"/>
-                        <Button Classes="outline" Content="1.0 ms" Command="{Binding ApplyTimerCommand}" CommandParameter="1.0"/>
-                        <Button Classes="outline" Content="恢复默认 (15.6 ms)" Command="{Binding ApplyTimerCommand}" CommandParameter="15.6"/>
+                        <Button Classes="outline" Classes.active="{Binding SelectedTimerIndex, Converter={x:Static conv:IndexIsZeroConverter.Instance}}" Content="0.5 ms" Command="{Binding ApplyTimerCommand}" CommandParameter="0.5"/>
+                        <Button Classes="outline" Classes.active="{Binding SelectedTimerIndex, Converter={x:Static conv:IndexIsOneConverter.Instance}}" Content="1.0 ms" Command="{Binding ApplyTimerCommand}" CommandParameter="1.0"/>
+                        <Button Classes="outline" Classes.active="{Binding SelectedTimerIndex, Converter={x:Static conv:IndexIsTwoConverter.Instance}}" Content="恢复默认 (15.6 ms)" Command="{Binding ApplyTimerCommand}" CommandParameter="15.6"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -106,13 +187,24 @@
             <!-- 电源模式 -->
             <Border Classes="card" Padding="20">
                 <StackPanel Spacing="12">
-                    <TextBlock Text="电源模式" FontSize="16" FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="电源模式" FontSize="16" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="切换 Windows 电源计划(当前生效项会高亮显示)。"
+                                       FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                        <Border Grid.Column="1" VerticalAlignment="Center" Background="{DynamicResource PrimaryBgBrush}"
+                                CornerRadius="10" Padding="10,4">
+                            <TextBlock Text="{Binding CurrentPowerPlan, StringFormat=当前: {0}}" FontSize="12"
+                                       FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}"/>
+                        </Border>
+                    </Grid>
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Button Classes="outline" Content="平衡" Command="{Binding SetPowerCommand}" CommandParameter="平衡"/>
-                        <Button Classes="outline" Content="高性能" Command="{Binding SetPowerCommand}" CommandParameter="高性能"/>
-                        <Button Classes="outline" Content="节能" Command="{Binding SetPowerCommand}" CommandParameter="节能"/>
-                        <Button Classes="outline" Content="卓越性能" Command="{Binding SetPowerCommand}" CommandParameter="卓越性能"/>
+                        <Button Classes="outline" Classes.active="{Binding SelectedPowerPlanIndex, Converter={x:Static conv:IndexIsZeroConverter.Instance}}" Content="平衡" Command="{Binding SetPowerCommand}" CommandParameter="平衡"/>
+                        <Button Classes="outline" Classes.active="{Binding SelectedPowerPlanIndex, Converter={x:Static conv:IndexIsOneConverter.Instance}}" Content="高性能" Command="{Binding SetPowerCommand}" CommandParameter="高性能"/>
+                        <Button Classes="outline" Classes.active="{Binding SelectedPowerPlanIndex, Converter={x:Static conv:IndexIsTwoConverter.Instance}}" Content="节能" Command="{Binding SetPowerCommand}" CommandParameter="节能"/>
+                        <Button Classes="outline" Classes.active="{Binding SelectedPowerPlanIndex, Converter={x:Static conv:IndexIsThreeConverter.Instance}}" Content="卓越性能" Command="{Binding SetPowerCommand}" CommandParameter="卓越性能"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -120,13 +212,30 @@
             <!-- 前台优先加速 -->
             <Border Classes="card" Padding="20">
                 <StackPanel Spacing="12">
-                    <TextBlock Text="前台优先加速(优先级分离)" FontSize="16" FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextPrimaryBrush}"/>
-                    <TextBlock Text="调整 Win32PrioritySeparation。『前台加速』适合游戏,『均衡』适合服务器/后台。需管理员。"
-                               FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="前台优先加速(优先级分离)" FontSize="16" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="调整 Win32PrioritySeparation。『前台加速』适合游戏,『均衡』适合服务器/后台。需管理员。"
+                                       FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                        <Border Grid.Column="1" VerticalAlignment="Center" Background="{DynamicResource PrimaryBgBrush}"
+                                CornerRadius="10" Padding="10,4">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Border Width="8" Height="8" CornerRadius="4" VerticalAlignment="Center"
+                                        Background="{DynamicResource SuccessBrush}"/>
+                                <TextBlock Text="前台加速已生效" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource PrimaryBrush}"
+                                           IsVisible="{Binding ForegroundAccelActive}"/>
+                                <TextBlock Text="未加速(默认)" FontSize="12"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           IsVisible="{Binding !ForegroundAccelActive}"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Button Classes="outline" Content="前台加速" Command="{Binding SetPrioritySepCommand}" CommandParameter="38"/>
-                        <Button Classes="outline" Content="均衡(后台服务)" Command="{Binding SetPrioritySepCommand}" CommandParameter="24"/>
+                        <Button Classes="outline" Classes.active="{Binding ForegroundAccelActive}" Content="前台加速" Command="{Binding SetPrioritySepCommand}" CommandParameter="38"/>
+                        <Button Classes="outline" Classes.active="{Binding !ForegroundAccelActive}" Content="均衡(后台服务)" Command="{Binding SetPrioritySepCommand}" CommandParameter="24"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -199,8 +308,13 @@
                 </StackPanel>
             </Border>
 
-            <TextBlock Text="{Binding Status}" FontSize="12" TextWrapping="Wrap"
-                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+            <Border Classes="card" Padding="14,10">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Border Classes="status-dot ok"/>
+                    <TextBlock Text="{Binding Status}" FontSize="12" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                </StackPanel>
+            </Border>
 
         </StackPanel>
     </ScrollViewer>

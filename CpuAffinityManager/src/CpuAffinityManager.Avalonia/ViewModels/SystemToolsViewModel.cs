@@ -1,22 +1,108 @@
 using System;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CpuAffinityManager.Cpu;
+using CpuAffinityManager.Gpu;
 using CpuAffinityManager.ProcOps;
 
 namespace CpuAffinityManager.Avalonia.ViewModels;
 
 /// <summary>
 /// System-wide "professional" tools: memory cleanup, timer resolution, power plan,
-/// and foreground priority separation. Most of these are global and need admin.
+/// and foreground priority separation. Shows the CURRENT effective state so every
+/// choice has visible feedback (highlight + status line). Most are global and need admin.
 /// </summary>
 public partial class SystemToolsViewModel : ViewModelBase
 {
     [ObservableProperty] private string _status = "";
     [ObservableProperty] private bool _isBusy;
 
+    // ── 当前生效状态(选择反馈)──
+
+    /// <summary>当前激活电源计划名称。</summary>
+    [ObservableProperty] private string _currentPowerPlan = "查询中…";
+
+    /// <summary>电源计划按钮高亮索引(-1=无匹配)。</summary>
+    [ObservableProperty] private int _selectedPowerPlanIndex = -1;
+
+    /// <summary>当前计时器分辨率。</summary>
+    [ObservableProperty] private string _currentTimerMs = "查询中…";
+
+    /// <summary>计时器按钮高亮索引(0=0.5ms, 1=1.0ms, 2=15.6ms)。</summary>
+    [ObservableProperty] private int _selectedTimerIndex = -1;
+
+    /// <summary>前台加速是否生效。</summary>
+    [ObservableProperty] private bool _foregroundAccelActive;
+
+    /// <summary>CPU 摘要(品牌/型号/线程数)。</summary>
+    [ObservableProperty] private string _cpuInfo = "";
+
+    /// <summary>显卡列表摘要。</summary>
+    [ObservableProperty] private string _gpuSummary = "";
+
+    public ObservableCollection<string> GpuList { get; } = new();
+
     public static string[] PowerPlans { get; } = ["平衡", "高性能", "节能", "卓越性能"];
+
+    public SystemToolsViewModel()
+    {
+        RefreshStatus();
+    }
+
+    /// <summary>重新读取系统当前生效项(电源计划/计时器/优先级/GPU)。</summary>
+    public void RefreshStatus()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        try
+        {
+            // 电源计划
+            string plan = SystemTweaks.GetCurrentPowerPlanName();
+            CurrentPowerPlan = plan;
+            SelectedPowerPlanIndex = plan switch
+            {
+                "平衡" => 0,
+                "高性能" => 1,
+                "节能" => 2,
+                _ when plan.Contains("卓越", StringComparison.Ordinal) => 3,
+                _ => -1
+            };
+
+            // 计时器分辨率
+            double ms = SystemTweaks.GetTimerResolutionMs();
+            if (ms < 0) CurrentTimerMs = "未知";
+            else
+            {
+                CurrentTimerMs = $"{ms:0.00} ms";
+                SelectedTimerIndex = ms <= 0.7 ? 0 : ms <= 1.3 ? 1 : 2;
+            }
+
+            // 前台加速(38=前台加速, 2=默认)
+            ForegroundAccelActive = SystemTweaks.GetPrioritySeparation() == 38;
+
+            // CPU 信息
+            try
+            {
+                var topo = new CpuTopologyService().Detect();
+                CpuInfo = string.IsNullOrWhiteSpace(topo.CpuModelName)
+                    ? $"{topo.TotalLogicalProcessors} 线程"
+                    : topo.CpuModelName.Trim() + $" · {topo.TotalLogicalProcessors} 线程" + (topo.IsHybrid ? $" · {topo.PcoreCount}P+{topo.EcoreCount}E" : "");
+            }
+            catch { CpuInfo = "检测失败"; }
+
+            // GPU 信息
+            GpuList.Clear();
+            var gpus = GpuInfoService.Enumerate();
+            foreach (var g in gpus) GpuList.Add(g.Name);
+            GpuSummary = gpus.Count == 0
+                ? "未检测到显卡"
+                : string.Join(" / ", gpus.Select(g => $"{g.Name}({g.RamText})"));
+        }
+        catch { }
+    }
 
     // ── 一键优化预设(组合调用现有系统调优)──
 
@@ -32,6 +118,7 @@ public partial class SystemToolsViewModel : ViewModelBase
             string c = SystemTweaks.SetPrioritySeparation(38); // 前台加速
             return "游戏模式已应用 · " + a.Split('·', ',')[^1].Trim();
         });
+        RefreshStatus();
     }
 
     [RelayCommand]
@@ -46,6 +133,7 @@ public partial class SystemToolsViewModel : ViewModelBase
             SystemTweaks.SetPrioritySeparation(2);
             return "均衡模式已应用(平衡电源 + 默认计时器 + 默认前台)";
         });
+        RefreshStatus();
     }
 
     [RelayCommand]
@@ -54,6 +142,7 @@ public partial class SystemToolsViewModel : ViewModelBase
         if (!OperatingSystem.IsWindows()) { Status = "仅 Windows 可用"; return; }
         Status = "正在应用图形性能优化…";
         Status = await Task.Run(() => SystemTweaks.ApplyGraphicsPreset());
+        RefreshStatus();
     }
 
     [RelayCommand]
@@ -78,6 +167,7 @@ public partial class SystemToolsViewModel : ViewModelBase
         if (!OperatingSystem.IsWindows()) { Status = "仅 Windows 可用"; return; }
         Status = "正在应用低延迟/高响应优化…";
         Status = await Task.Run(() => SystemTweaks.ApplyLatencyOptimization(true));
+        RefreshStatus();
     }
 
     [RelayCommand]
@@ -86,6 +176,7 @@ public partial class SystemToolsViewModel : ViewModelBase
         if (!OperatingSystem.IsWindows()) { Status = "仅 Windows 可用"; return; }
         Status = "正在恢复默认延迟/响应设置…";
         Status = await Task.Run(() => SystemTweaks.ApplyLatencyOptimization(false));
+        RefreshStatus();
     }
 
     [RelayCommand]
@@ -100,6 +191,7 @@ public partial class SystemToolsViewModel : ViewModelBase
             SystemTweaks.SetPrioritySeparation(24);
             return "省电模式已应用(节能电源 + 默认计时器 + 后台均衡)";
         });
+        RefreshStatus();
     }
 
     [RelayCommand]
@@ -129,6 +221,7 @@ public partial class SystemToolsViewModel : ViewModelBase
         if (!OperatingSystem.IsWindows()) { Status = "仅 Windows 可用"; return; }
         Status = "正在清理多余电源计划…";
         Status = await Task.Run(() => SystemTweaks.CleanDuplicatePowerPlans());
+        RefreshStatus();
     }
 
     // ── 睡眠 / 亮度 / 快捷入口 / DNS ──
@@ -203,6 +296,7 @@ public partial class SystemToolsViewModel : ViewModelBase
         if (!double.TryParse(ms, out double v)) { Status = "计时器数值无效"; return; }
         if (!OperatingSystem.IsWindows()) { Status = "仅 Windows 可用"; return; }
         Status = await Task.Run(() => SystemTweaks.SetTimerResolution(v));
+        RefreshStatus();
     }
 
     [RelayCommand]
@@ -218,6 +312,7 @@ public partial class SystemToolsViewModel : ViewModelBase
         };
         Status = "正在切换电源模式…";
         Status = await Task.Run(() => SystemTweaks.SetPowerPlan(p));
+        RefreshStatus();
     }
 
     [RelayCommand]
@@ -226,5 +321,6 @@ public partial class SystemToolsViewModel : ViewModelBase
         if (!OperatingSystem.IsWindows()) { Status = "仅 Windows 可用"; return; }
         if (!int.TryParse(value, out int v)) return;
         Status = await Task.Run(() => SystemTweaks.SetPrioritySeparation(v));
+        RefreshStatus();
     }
 }

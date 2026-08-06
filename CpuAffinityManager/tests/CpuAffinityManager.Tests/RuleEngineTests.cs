@@ -64,15 +64,23 @@ public class RuleEngineTests
     public void DefaultRules_CpuZRule_UsesECoresWithLockedJob()
     {
         var engine = new RuleEngine();
-        engine.Load(RuleConfigPath.FindDefaultRules(AppContext.BaseDirectory));
+        string? template = RuleConfigPath.FindBundledTemplate(AppContext.BaseDirectory);
+        Assert.NotNull(template);
+        engine.Load(template!);
+
+        var cpuZRule = engine.Rules.FirstOrDefault(r => r.Id == "rule-015");
+        Assert.NotNull(cpuZRule);
+        Assert.Equal("e-cores|second-half", cpuZRule.Action.Mode);
+        Assert.Equal("job-locked", cpuZRule.Action.Level);
+        Assert.True(cpuZRule.Action.Lock);
+
+        cpuZRule.Enabled = true;
+        engine.AddRule(cpuZRule);
 
         var result = engine.Match("CPU-Z-v2.08.0-CN.exe", @"J:\Tools\CPUZ\CPU-Z-v2.08.0-CN.exe");
 
         Assert.NotNull(result);
-        Assert.Equal("rule-003", result.Id);
-        Assert.Equal("e-cores|second-half", result.Action.Mode);
-        Assert.Equal("job-locked", result.Action.Level);
-        Assert.True(result.Action.Lock);
+        Assert.Equal("rule-015", result.Id);
     }
 
     [Fact]

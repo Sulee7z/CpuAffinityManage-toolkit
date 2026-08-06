@@ -18,11 +18,11 @@
 
             <!-- Surfaces (Mica base + layered cards) -->
             <Color x:Key="BgColor">#F3F3F3</Color>
-            <Color x:Key="SurfaceColor">#FDFDFD</Color>
-            <Color x:Key="SurfaceHoverColor">#F5F5F5</Color>
+            <Color x:Key="SurfaceColor">#FFFFFF</Color>
+            <Color x:Key="SurfaceHoverColor">#F7F7F7</Color>
             <Color x:Key="SurfacePressedColor">#EFEFEF</Color>
-            <Color x:Key="SidebarBgColor">#EBEBEB</Color>
-            <Color x:Key="SidebarHoverColor">#E0E0E0</Color>
+            <Color x:Key="SidebarBgColor">#F0F0F2</Color>
+            <Color x:Key="SidebarHoverColor">#E6E6E8</Color>
             <Color x:Key="SidebarActiveColor">#FFFFFF</Color>
 
             <!-- Text -->
@@ -52,6 +52,8 @@
             <!-- Tinted backgrounds -->
             <Color x:Key="DangerBgColor">#FDE7E9</Color>
             <Color x:Key="WarningBgColor">#FFF4CE</Color>
+            <Color x:Key="InfoBgColor">#E8F1FB</Color>
+            <Color x:Key="SuccessBgColor">#E7F5E7</Color>
 
             <!-- Brushes -->
             <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PrimaryColor}"/>
@@ -82,6 +84,8 @@
             <SolidColorBrush x:Key="EcoreBrush" Color="{StaticResource EcoreColor}"/>
             <SolidColorBrush x:Key="DangerBgBrush" Color="{StaticResource DangerBgColor}"/>
             <SolidColorBrush x:Key="WarningBgBrush" Color="{StaticResource WarningBgColor}"/>
+            <SolidColorBrush x:Key="InfoBgBrush" Color="{StaticResource InfoBgColor}"/>
+            <SolidColorBrush x:Key="SuccessBgBrush" Color="{StaticResource SuccessBgColor}"/>
         </ResourceDictionary>
 
         <!-- ───────── Dark ───────── -->
@@ -128,6 +132,8 @@
             <!-- Tinted backgrounds -->
             <Color x:Key="DangerBgColor">#442726</Color>
             <Color x:Key="WarningBgColor">#433519</Color>
+            <Color x:Key="InfoBgColor">#123342</Color>
+            <Color x:Key="SuccessBgColor">#1E3A23</Color>
 
             <!-- Brushes -->
             <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PrimaryColor}"/>
@@ -158,11 +164,14 @@
             <SolidColorBrush x:Key="EcoreBrush" Color="{StaticResource EcoreColor}"/>
             <SolidColorBrush x:Key="DangerBgBrush" Color="{StaticResource DangerBgColor}"/>
             <SolidColorBrush x:Key="WarningBgBrush" Color="{StaticResource WarningBgColor}"/>
+            <SolidColorBrush x:Key="InfoBgBrush" Color="{StaticResource InfoBgColor}"/>
+            <SolidColorBrush x:Key="SuccessBgBrush" Color="{StaticResource SuccessBgColor}"/>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
     <!-- Theme-agnostic: subtle Win11 elevation shadows -->
-    <BoxShadows x:Key="ShadowSm">0 1 3 #00000014</BoxShadows>
-    <BoxShadows x:Key="ShadowMd">0 4 12 #0000001F</BoxShadows>
+    <BoxShadows x:Key="ShadowSm">0 1 3 #00000012</BoxShadows>
+    <BoxShadows x:Key="ShadowMd">0 6 18 #0000001F</BoxShadows>
+    <BoxShadows x:Key="ShadowLg">0 12 32 #0000002E</BoxShadows>
 
 </ResourceDictionary>

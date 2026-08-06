@@ -29,9 +29,11 @@ public sealed class AffinityEnforcementWatchdog : IDisposable
         _ruleEngine = ruleEngine;
         _topologyService = topologyService;
         _enforcementService = enforcementService;
-        // 1s is responsive enough to re-clamp a process that reset its own affinity,
-        // while cutting the background scan rate 4x versus the old 250ms loop.
-        _period = period ?? TimeSpan.FromMilliseconds(1000);
+        // 250ms 比旧 1s 周期更快地给新线程补上"优先核心"理想处理器提示:
+        // 游戏线程每帧都会唤醒/阻塞,唤醒时调度器按理想处理器选核,
+        // 周期越短,新线程被引向优先核心越及时。空闲时 EnforceOnce 直接
+        // 返回,扫描开销可忽略。
+        _period = period ?? TimeSpan.FromMilliseconds(250);
     }
 
     public void Start()
@@ -53,8 +55,10 @@ public sealed class AffinityEnforcementWatchdog : IDisposable
         // 只有存在需要持续强制的规则、或手动/持久化核心记录时才枚举全部进程;
         // 否则每秒 Process.GetProcesses() 会白白产生大量临时对象(GC 压力)。
         bool anyOngoingRule = false;
+        int enabledRuleCount = 0;
         foreach (var r in _ruleEngine.Rules)
         {
+            if (r.Enabled) enabledRuleCount++;
             if (r.Enabled && r.Action != null &&
                 (r.Action.Level is "hard-affinity" or "job-enforced" or "job-locked"
                  || r.Action.GetPreferredMask() != 0))
@@ -63,7 +67,11 @@ public sealed class AffinityEnforcementWatchdog : IDisposable
         bool anyManual = ManualAffinityRegistry.ManualWins &&
                          (!ManualAffinityRegistry.IsEmpty || !PersistentAffinityStore.IsEmpty);
         if (!anyOngoingRule && !anyManual)
+        {
+            Log.Information("Watchdog idle: enabledRules={Enabled} ongoing={Ongoing} manual={Manual} ManualWins={Wins}",
+                enabledRuleCount, anyOngoingRule, anyManual, ManualAffinityRegistry.ManualWins);
             return 0;
+        }
 
         CpuTopology topology = _topologyService.Detect();
 
@@ -84,6 +92,17 @@ public sealed class AffinityEnforcementWatchdog : IDisposable
                 if (pid is 0 or 4)
                     continue;
 
+                string procName = process.ProcessName + ".exe";
+                if (procName.StartsWith("waketest", StringComparison.OrdinalIgnoreCase))
+                {
+                    long now = Environment.TickCount64;
+                    if (now - LastWaketestLog > 1000)
+                    {
+                        LastWaketestLog = now;
+                        Log.Information("WATCHDOG-LOOP: seen {Name} (pid {Pid}), ManualWins={Mw}", procName, pid, ManualAffinityRegistry.ManualWins);
+                    }
+                }
+
                 // 指定核心优先:若该进程有手动选择的核心且“指定核心优先级高”开启,
                 // 则守护线程负责把它维持在手动掩码上,并跳过规则(手动 > 规则)。
                 if (ManualAffinityRegistry.ManualWins &&
@@ -101,7 +120,7 @@ public sealed class AffinityEnforcementWatchdog : IDisposable
                     continue; // 手动优先,忽略规则
                 }
 
-                string name = process.ProcessName + ".exe";
+                string name = procName;
 
                 // 重启后保留:按“程序名”记住的手动核心设置,重启软件/新开实例后仍生效。
                 if (ManualAffinityRegistry.ManualWins &&
@@ -132,9 +151,18 @@ public sealed class AffinityEnforcementWatchdog : IDisposable
                 // processes. Only queried when a path-conditioned rule exists.
                 string path = needPath ? (EnforcementService.GetProcessPath(pid) ?? string.Empty) : string.Empty;
 
+                // 诊断:新进程出现但未匹配任何规则时记录一次
+                var diagRule = _ruleEngine.Match(name, path);
+                if (diagRule == null || !RequiresOngoingEnforcement(diagRule))
+                {
+                    if (name.StartsWith("waketest", StringComparison.OrdinalIgnoreCase))
+                        Log.Information("WATCHDOG-SKIP: {Name} (pid {Pid}) matched={Matched}", name, pid, diagRule?.Name ?? "NULL");
+                }
+
                 RuleEntry? rule = _ruleEngine.Match(name, path);
                 if (rule?.Action == null || !RequiresOngoingEnforcement(rule))
                     continue;
+                LogMatchOnce(pid, name, rule);
 
                 // “优先调度核心”每个周期重设一次:覆盖进程后创建的新线程,
                 // 也纠正游戏自己改回的理想处理器 —— 这是它真正“生效”的关键。
@@ -168,9 +196,11 @@ public sealed class AffinityEnforcementWatchdog : IDisposable
                         rule.Name, name, pid, current, expected);
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // Process may exit or deny access while scanning.
+                if (ex is not InvalidOperationException)
+                    Log.Warning(ex, "WATCHDOG per-process error (pid {Pid})", process.Id);
             }
             finally
             {
@@ -186,18 +216,36 @@ public sealed class AffinityEnforcementWatchdog : IDisposable
         if (Interlocked.Exchange(ref _isTicking, 1) == 1)
             return;
 
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
-            EnforceOnce();
+            int changed = EnforceOnce();
+            if (sw.ElapsedMilliseconds > 500)
+                Log.Information("Watchdog tick took {Ms}ms (changed {N})", sw.ElapsedMilliseconds, changed);
         }
         catch (Exception ex)
         {
-            Log.Debug(ex, "Affinity watchdog tick failed");
+            Log.Warning(ex, "Affinity watchdog tick failed after {Ms}ms", sw.ElapsedMilliseconds);
         }
         finally
         {
             Volatile.Write(ref _isTicking, 0);
         }
+    }
+
+    internal static string LastTickLog = "";
+
+    // 节流诊断:每个进程每秒最多记一条"已匹配"日志,用于定位 watchdog 应用延迟。
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, long> MatchLogThrottle = new();
+    private static long LastWaketestLog;
+
+    private static void LogMatchOnce(int pid, string name, RuleEntry rule)
+    {
+        long now = Environment.TickCount64;
+        if (MatchLogThrottle.TryGetValue(pid, out long last) && now - last < 1000)
+            return;
+        MatchLogThrottle[pid] = now;
+        Log.Information("Watchdog matched '{Rule}' -> {Process} (pid {Pid})", rule.Name, name, pid);
     }
 
     private static bool RequiresOngoingEnforcement(RuleEntry rule)
@@ -207,4 +255,4 @@ public sealed class AffinityEnforcementWatchdog : IDisposable
     }
 
     public void Dispose() => Stop();
-}
+}// INTENTIONAL-COMPILE-TEST

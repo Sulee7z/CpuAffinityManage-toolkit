@@ -42,6 +42,16 @@ public partial class DashboardViewModel : ViewModelBase
         try { ProcessCount = System.Diagnostics.Process.GetProcesses().Length.ToString(); }
         catch { ProcessCount = "??"; }
         RulesActive = _ruleEngine.Rules.Count(r => r.Enabled).ToString();
+
+        if (topo == null)
+        {
+            PCoreCount = "--";
+            ECoreCount = "--";
+            CoreItems.Clear();
+            RuleSummaries.Clear();
+            return;
+        }
+
         PCoreCount = topo.PcoreCount.ToString();
         ECoreCount = topo.EcoreCount.ToString();
 

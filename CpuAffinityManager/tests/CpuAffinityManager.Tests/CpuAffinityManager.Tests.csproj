@@ -24,4 +24,10 @@
     <ProjectReference Include="..\..\src\CpuAffinityManager.Core\CpuAffinityManager.Core.csproj" />
   </ItemGroup>
 
+  <!-- MCP 集成测试已被停用（MCP 构建链条已从构建流程移除，源码保留）。如需恢复，
+       删除本 Compile Remove 项并在构建 MCP 项目后重新启用。 -->
+  <ItemGroup>
+    <Compile Remove="McpIntegrationTests.cs" />
+  </ItemGroup>
+
 </Project>

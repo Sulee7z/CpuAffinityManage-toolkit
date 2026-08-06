@@ -5,7 +5,7 @@ namespace CpuAffinityManager.Tests;
 public class RuleConfigPathTests
 {
     [Fact]
-    public void FindDefaultRules_WalksUpToProjectConfigFolder()
+    public void FindBundledTemplate_WalksUpToProjectConfigFolder()
     {
         string root = Path.Combine(Path.GetTempPath(), "pm-rules-" + Guid.NewGuid().ToString("N"));
         string nested = Path.Combine(root, "src", "App", "bin", "Debug", "net10.0-windows");
@@ -18,11 +18,18 @@ public class RuleConfigPathTests
 
         try
         {
-            Assert.Equal(expected, RuleConfigPath.FindDefaultRules(nested));
+            Assert.Equal(expected, RuleConfigPath.FindBundledTemplate(nested));
         }
         finally
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    [Fact]
+    public void FindDefaultRules_ReturnsWritableLocalAppDataPath()
+    {
+        string expected = Path.Combine(RuleConfigPath.DataDirectory, RuleConfigPath.DefaultFileName);
+        Assert.Equal(expected, RuleConfigPath.FindDefaultRules(AppContext.BaseDirectory));
     }
 }

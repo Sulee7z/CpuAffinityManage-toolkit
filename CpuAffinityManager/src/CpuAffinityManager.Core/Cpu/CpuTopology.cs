@@ -1,11 +1,41 @@
 namespace CpuAffinityManager.Cpu;
 
+/// <summary>CPU 品牌,用于适配不同厂商的核心拓扑语义。</summary>
+public enum CpuVendor
+{
+    Unknown,
+    Intel,
+    Amd
+}
+
 /// <summary>
 /// Detected CPU topology including P-core/E-core masks, SMT layout,
 /// per-socket masks for multi-CPU systems, and composite mask builders.
 /// </summary>
 public class CpuTopology
 {
+    /// <summary>CPU 品牌(Intel / AMD / Unknown)。</summary>
+    public CpuVendor Vendor { get; init; } = CpuVendor.Unknown;
+
+    /// <summary>CPU 型号名称(如 "AMD Ryzen 7 7800X3D")。</summary>
+    public string CpuModelName { get; init; } = "";
+
+    /// <summary>是否 AMD 处理器(CCD 拓扑、CPPC 优选核心语义)。</summary>
+    public bool IsAmd => Vendor == CpuVendor.Amd;
+
+    /// <summary>是否为混合架构(P/E 核心,如 Intel 12代+ 或 AMD Ryzen AI 系列)。</summary>
+    public bool IsHybrid => EcoreCount > 0;
+
+    /// <summary>
+    /// 本 CPU 上性能最高的物理核心逻辑索引(SMT0)。
+    /// Intel 混合架构 = 第一个 P 核;AMD = 物理核心 0(CPPC 最高 boost 通常落在 CCD0 首核)。
+    /// </summary>
+    public int BestCoreIndex =>
+        PcoreMask != 0
+            ? System.Numerics.BitOperations.TrailingZeroCount(PcoreMask)
+            : (Smt0Mask != 0
+                ? System.Numerics.BitOperations.TrailingZeroCount(Smt0Mask)
+                : 0);
     /// <summary>Total number of logical processors in the system.</summary>
     public int TotalLogicalProcessors { get; init; }
 
@@ -180,6 +210,8 @@ public class CpuTopology
             $"{PcoreCount}P + {EcoreCount}E",
             $"SMT={(SmtEnabled ? "On" : "Off")}"
         };
+        if (Vendor != CpuVendor.Unknown)
+            parts.Insert(0, Vendor.ToString());
         if (SocketCount > 1)
             parts.Add($"{SocketCount} Sockets");
         parts.Add($"P-mask=0x{PcoreMask:X}");

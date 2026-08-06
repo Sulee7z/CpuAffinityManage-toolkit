@@ -66,6 +66,39 @@
                                                   Command="{Binding $parent[UserControl].DataContext.ThreadScheduleCommand}"
                                                   CommandParameter="{Binding .}"/>
                                         <MenuItem Header="-"/>
+                                        <MenuItem Header="★ 优先跑指定核心(单线程优先)…"
+                                                  Command="{Binding $parent[UserControl].DataContext.OpenPreferredCoreCommand}"
+                                                  CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="↩ 移除优先核心设置"
+                                                  Command="{Binding $parent[UserControl].DataContext.RemovePreferredCoreCommand}"
+                                                  CommandParameter="{Binding .}"/>
+                                        <MenuItem Header="🎮 游戏优化预设">
+                                            <MenuItem Header="⚡ 电竞低延迟(CS/瓦洛兰特/LOL/永劫)"
+                                                      Command="{Binding $parent[UserControl].DataContext.ApplyGamePresetCommand}"
+                                                      CommandParameter="esports"/>
+                                            <MenuItem Header="🚀 极致帧率(所有FPS)"
+                                                      Command="{Binding $parent[UserControl].DataContext.ApplyGamePresetCommand}"
+                                                      CommandParameter="fps-max"/>
+                                            <MenuItem Header="🎮 3A 单机大作"
+                                                      Command="{Binding $parent[UserControl].DataContext.ApplyGamePresetCommand}"
+                                                      CommandParameter="aaa"/>
+                                            <MenuItem Header="🕹 模拟器(Yuzu/Ryujinx 等)"
+                                                      Command="{Binding $parent[UserControl].DataContext.ApplyGamePresetCommand}"
+                                                      CommandParameter="emulator"/>
+                                            <MenuItem Header="🌍 MMO(魔兽/FF14/原神)"
+                                                      Command="{Binding $parent[UserControl].DataContext.ApplyGamePresetCommand}"
+                                                      CommandParameter="mmo"/>
+                                            <MenuItem Header="♟ 策略/经营(文明/全战)"
+                                                      Command="{Binding $parent[UserControl].DataContext.ApplyGamePresetCommand}"
+                                                      CommandParameter="strategy"/>
+                                            <MenuItem Header="🔋 均衡(省电/低配)"
+                                                      Command="{Binding $parent[UserControl].DataContext.ApplyGamePresetCommand}"
+                                                      CommandParameter="balanced"/>
+                                            <MenuItem Header="-"/>
+                                            <MenuItem Header="↩ 移除游戏优化预设"
+                                                      Command="{Binding $parent[UserControl].DataContext.RemoveGamePresetCommand}"/>
+                                        </MenuItem>
+                                        <MenuItem Header="-"/>
                                         <MenuItem Header="CPU 优先级">
                                             <MenuItem Header="高" Command="{Binding $parent[UserControl].DataContext.PriorityHighCommand}" CommandParameter="{Binding .}"/>
                                             <MenuItem Header="常规" Command="{Binding $parent[UserControl].DataContext.PriorityNormalCommand}" CommandParameter="{Binding .}"/>

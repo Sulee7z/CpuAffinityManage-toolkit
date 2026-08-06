@@ -161,6 +161,114 @@ public partial class ProcessListViewModel : ViewModelBase
         catch (Exception ex) { Log.Error(ex, "OpenAffinity failed"); if (Parent != null) Parent.StatusText = "核心选择失败"; }
     }
 
+    /// <summary>打开"优先跑指定核心"对话框:勾选一个/多个核心,进程仍全核可用,
+    /// 但单线程/主线程负载会优先跑在勾选的核心上(最热线程硬钉 + 理想处理器提示)。</summary>
+    [RelayCommand]
+    private async Task OpenPreferredCore(ProcessItem i)
+    {
+        try
+        {
+            var topo = _topoService.Detect();
+            var owner = (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+            if (owner == null) return;
+
+            string ruleId = "pref-" + i.Name.Replace(".exe", "", StringComparison.OrdinalIgnoreCase).ToLowerInvariant();
+            var existing = _ruleEngine.Rules.FirstOrDefault(r => r.Id == ruleId);
+            ulong curMask = existing?.Action.GetPreferredMask() ?? 0;
+
+            var dlg = new Views.CoreSelectDialog($"{i.Name} · 优先跑指定核心",
+                topo.TotalLogicalProcessors, topo.PcoreMask, topo.EcoreMask, curMask, simple: true);
+            var res = await dlg.ShowDialog<Views.CoreSelectResult?>(owner);
+            if (res == null) return; // 取消
+
+            if (res.Reset || res.Mask == 0)
+            {
+                if (existing != null) Parent?.RemoveRule(ruleId);
+                if (Parent != null)
+                    Parent.StatusText = res.Reset ? $"已移除 {i.Name} 的优先核心设置" : "未选择核心,已取消";
+                return;
+            }
+
+            var rule = new RuleEntry
+            {
+                Id = ruleId,
+                Name = $"{i.Name} 优先核心",
+                Enabled = true,
+                Match = new RuleMatch { Process = i.Name },
+                Action = new RuleAction
+                {
+                    Mode = "all-cores",
+                    Level = "hard-affinity",
+                    PreferredCores = "0x" + res.Mask.ToString("X"),
+                    PreferMode = "dynamic"
+                }
+            };
+            Parent?.AddOrUpdateRule(rule);
+            if (Parent != null)
+                Parent.StatusText = $"已设置 {i.Name} 优先跑核心 (0x{res.Mask:X}) — 单线程优先,多线程仍全核可用";
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "OpenPreferredCore failed");
+            if (Parent != null) Parent.StatusText = "优先核心设置失败";
+        }
+    }
+
+    /// <summary>移除该进程的"优先跑指定核心"规则(恢复默认调度)。</summary>
+    [RelayCommand]
+    private void RemovePreferredCore(ProcessItem i)
+    {
+        string ruleId = "pref-" + i.Name.Replace(".exe", "", StringComparison.OrdinalIgnoreCase).ToLowerInvariant();
+        bool removed = _ruleEngine.RemoveRule(ruleId);
+        if (removed)
+        {
+            Parent?.NotifyRuleChanged();
+            if (Parent != null) Parent.StatusText = $"已移除 {i.Name} 的优先核心设置";
+        }
+        else if (Parent != null) Parent.StatusText = $"{i.Name} 没有优先核心设置";
+    }
+
+    /// <summary>应用游戏优化预设:生成该进程的预设规则并立即生效。</summary>
+    [RelayCommand]
+    private void ApplyGamePreset(string presetId)
+    {
+        try
+        {
+            var preset = CpuAffinityManager.Game.GamePreset.Catalog.FirstOrDefault(p => p.Id == presetId);
+            if (preset == null) return;
+            var item = ContextItem;
+            if (item == null) return;
+
+            var topo = _topoService.Detect();
+            var rule = CpuAffinityManager.Game.GameOptimizer.BuildRule(item.Name, preset, topo);
+            Parent?.AddOrUpdateRule(rule);
+            if (Parent != null)
+                Parent.StatusText = $"已应用『{preset.Name}』到 {item.Name} — 核心分配+优先级已生效";
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "ApplyGamePreset failed");
+            if (Parent != null) Parent.StatusText = "游戏预设应用失败";
+        }
+    }
+
+    /// <summary>移除该进程的游戏预设规则(含 GPU 偏好还原)。</summary>
+    [RelayCommand]
+    private void RemoveGamePreset()
+    {
+        var item = ContextItem;
+        if (item == null) return;
+        string ruleId = CpuAffinityManager.Game.GameOptimizer.RuleIdFor(item.Name);
+        bool removed = _ruleEngine.RemoveRule(ruleId);
+        if (removed)
+        {
+            CpuAffinityManager.Game.GameOptimizer.Cleanup(item.Name);
+            Parent?.NotifyRuleChanged();
+            if (Parent != null) Parent.StatusText = $"已移除 {item.Name} 的游戏优化预设";
+        }
+        else if (Parent != null) Parent.StatusText = $"{item.Name} 没有游戏优化预设";
+    }
+
     partial void OnSearchTextChanged(string value) => ApplyFilter();
 
     [RelayCommand]

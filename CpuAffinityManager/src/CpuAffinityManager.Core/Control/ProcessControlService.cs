@@ -406,11 +406,12 @@ public static class ProcessControlService
 
     /// <summary>
     /// Multi-core priority scheduling with binding mode:
-    ///   "dynamic" / null → IdealProcessor hints only (all cores usable, soft)
+    ///   "dynamic" / null → 游戏模式:最热线程(主/渲染线程)硬钉在优先核心,
+    ///                        其余线程全核可用(工作线程可满载);理想处理器同时设置
     ///   "static"        → set process+thread affinity to priority mask (hard bind)
     ///   "d2"            → CPU Sets to priority mask + IdealProcessor (moderate)
     ///   "d3"            → IdealProcessor to priority mask + EcoQoS (省电)
-    /// Re-applied periodically by the watchdog.
+    /// Re-applied periodically by the watchdog (250ms), so新线程会很快被识别为热线程。
     /// </summary>
     public static bool ApplyPreferredCores(int pid, ulong preferredMask, string? preferMode = null)
     {
@@ -431,20 +432,171 @@ public static class ProcessControlService
             case "d3":
                 SetEfficiencyMode(pid, true);
                 break;
-            default: // dynamic
+            default: // dynamic — 游戏主线程优先核心硬钉
+                ok = PinHottestThreads(pid, cores);
                 break;
         }
 
-        Managed(pid, p =>
-        {
-            int idx = 0;
-            foreach (ProcessThread t in p.Threads)
-            {
-                try { t.IdealProcessor = cores[idx % cores.Count]; } catch { }
-                idx++;
-            }
-        });
         return ok;
+    }
+
+    /// <summary>
+    /// 优先核心调度:恰好 1 个线程正在执行(单核负载)时把它钉到优先核心;
+    /// ≥2 个线程同时执行(多核负载)时完全放开让全核满载;无线程执行时保持现状。
+    ///
+    /// 用线程实时状态(Running/Wait)而非 CPU 时间统计判定 —— 某些环境
+    /// (虚拟化/沙箱)下 GetProcessTimes/性能计数器的 CPU 时间统计会失真,
+    /// 基于 CPU 增量的判定会漏钉或误判,而线程状态是可靠的实时信号。
+    /// </summary>
+    private static bool PinHottestThreads(int pid, List<int> preferredCores)
+    {
+        return Managed(pid, p =>
+        {
+            ulong allCores = (1UL << Environment.ProcessorCount) - 1;
+            if (allCores == 0) allCores = ulong.MaxValue;
+
+            var threads = p.Threads.Cast<ProcessThread>().ToList();
+            if (threads.Count == 0) return;
+
+            var running = threads.Where(t =>
+            {
+                try { return t.ThreadState == System.Diagnostics.ThreadState.Running; }
+                catch { return false; }
+            }).ToList();
+
+            // 无线程正在执行(空闲/全部在等待):保持现状不动,避免抖动。
+            if (running.Count == 0)
+            {
+                CleanStalePins(pid, threads);
+                return;
+            }
+
+            // 多核负载判定:≥4 个线程同时在执行才视为多核满载并解除钉扎。
+            // 用 4 而不是 2 —— 单核测试进程(如 CPU-Z)里 UI/服务线程也会
+            // Running(共 2-3 个),若阈值过低会把单核测试误判为多核而不钉。
+            const int MultiCoreRunningThreshold = 4;
+            if (running.Count >= MultiCoreRunningThreshold)
+            {
+                UnpinAll(pid, threads, allCores);
+                UnpinCooldown[pid] = Environment.TickCount64 + 2000; // 解除后 2 秒冷却,防震荡
+                CleanStalePins(pid, threads);
+                return;
+            }
+
+            // 冷却期内(刚解除多核钉扎)不立即重钉。
+            if (UnpinCooldown.TryGetValue(pid, out long until) && Environment.TickCount64 < until)
+            {
+                CleanStalePins(pid, threads);
+                return;
+            }
+
+            // 单核负载(1-3 个线程在执行):在 running 线程中选累计 CPU 时间
+            // 最高的(测试线程 >> UI 线程,相对排序即使在 CPU 统计失真的环境
+            // 下仍有区分度)钉到优先核心。
+            var hottest = running.OrderByDescending(t => SafeCpuTime(t)).First();
+            var chosen = new List<ProcessThread> { hottest };
+
+            int idx = 0;
+            foreach (var t in chosen)
+            {
+                int core = preferredCores[idx % preferredCores.Count];
+                idx++;
+                try { t.IdealProcessor = core; } catch { }
+                try
+                {
+                    // 无条件设置线程亲和性(幂等):即使 PinnedThreads 里残留了复用的
+                    // PID/线程ID 旧记录,也能保证钉扎真实生效,而不是只留下软提示。
+                    t.ProcessorAffinity = new IntPtr(1L << core);
+                    if (GetPinnedCore(pid, t.Id) != core)
+                    {
+                        SetPinnedCore(pid, t.Id, core);
+                        Log.Information("PIN tid {Tid} -> core {Core} (pid {Pid})", t.Id, core, pid);
+                    }
+                }
+                catch (Exception ex) { Log.Warning(ex, "PIN failed tid {Tid} pid {Pid}", t.Id, pid); }
+            }
+
+            // 非钉扎线程:若之前被我们钉过(有真实 core 记录),恢复全核可用。
+            foreach (var t in threads)
+            {
+                if (chosen.Contains(t)) continue;
+                try
+                {
+                    int? pinned = GetPinnedCore(pid, t.Id);
+                    if (pinned.HasValue)
+                    {
+                        t.ProcessorAffinity = new IntPtr((long)allCores);
+                        ClearPinnedCore(pid, t.Id);
+                        Log.Information("UNPIN tid {Tid} (pid {Pid})", t.Id, pid);
+                    }
+                }
+                catch (Exception ex) { Log.Warning(ex, "UNPIN failed tid {Tid} pid {Pid}", t.Id, pid); }
+            }
+
+            CleanStalePins(pid, threads);
+        });
+    }
+
+    private static void UnpinAll(int pid, List<ProcessThread> threads, ulong allCores)
+    {
+        foreach (var t in threads)
+        {
+            if (!GetPinnedCore(pid, t.Id).HasValue) continue;
+            try
+            {
+                t.ProcessorAffinity = new IntPtr((long)allCores);
+                ClearPinnedCore(pid, t.Id);
+                Log.Information("UNPIN tid {Tid} (pid {Pid})", t.Id, pid);
+            }
+            catch (Exception ex) { Log.Warning(ex, "UNPIN failed tid {Tid} pid {Pid}", t.Id, pid); }
+        }
+    }
+
+    // 钉扎记录 (pid, tid) → core(仅真正钉过的线程),用于解除钉扎。
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<long, int> PinnedThreads = new();
+
+    // 进程级 CPU 时间快照 (pid) → 上次读取值,用于计算进程总增量。
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, double> LastProcCpuSnapshot = new();
+
+    // 单核负载连续确认计数 (pid) → 连续观察到的单核 tick 数。
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, int> SingleCoreStreak = new();
+
+    // 多核解除后的冷却截止时间 (pid) → TickCount64,冷却期内不重钉,防震荡。
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, long> UnpinCooldown = new();
+
+    private static long PinKey(int pid, int tid) => ((long)pid << 32) | (uint)tid;
+
+    private static int? GetPinnedCore(int pid, int tid)
+        => PinnedThreads.TryGetValue(PinKey(pid, tid), out int core) ? core : null;
+
+    private static double GetLastProcCpu(int pid)
+        => LastProcCpuSnapshot.TryGetValue(pid, out double cpu) ? cpu : 0;
+
+    private static void SetLastProcCpu(int pid, double cpu)
+        => LastProcCpuSnapshot[pid] = cpu;
+
+    private static void SetPinnedCore(int pid, int tid, int core) => PinnedThreads[PinKey(pid, tid)] = core;
+
+    private static void ClearPinnedCore(int pid, int tid) => PinnedThreads.TryRemove(PinKey(pid, tid), out _);
+
+    private static void CleanStalePins(int pid, List<ProcessThread> threads)
+    {
+        var alive = new HashSet<long>(threads.Select(t => PinKey(pid, t.Id)));
+        foreach (var key in PinnedThreads.Keys)
+        {
+            if ((key >> 32) == pid && !alive.Contains(key))
+                PinnedThreads.TryRemove(key, out _);
+        }
+        if (PinnedThreads.Count > 8192)
+            PinnedThreads.Clear();
+        if (LastProcCpuSnapshot.Count > 4096)
+            LastProcCpuSnapshot.Clear(); // 防御性上限
+    }
+
+    private static double SafeCpuTime(ProcessThread t)
+    {
+        try { return t.TotalProcessorTime.TotalSeconds; }
+        catch { return 0; }
     }
 
     /// <summary>
